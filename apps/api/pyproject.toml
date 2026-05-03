@@ -15,6 +15,7 @@ dependencies = [
     "bcrypt>=4.2.0",
     "pyjwt>=2.10.0",
     "structlog>=24.4.0",
+    "pyyaml>=6.0.0",
 ]
 
 [project.optional-dependencies]
@@ -24,6 +25,8 @@ dev = [
     "httpx>=0.28.0",
     "mypy>=1.13.0",
     "ruff>=0.8.0",
+    "freezegun>=1.4.0",
+    "types-PyYAML>=6.0.0",
 ]
 
 [build-system]

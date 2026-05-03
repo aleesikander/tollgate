@@ -8,6 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from tollgate.background import start_background_tasks, stop_background_tasks
 from tollgate.database import close_engine
 from tollgate.logging import get_logger, setup_logging
 from tollgate.routes import router
@@ -21,9 +22,11 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     # Startup
     setup_logging()
     logger.info("application_starting")
+    start_background_tasks()
     yield
     # Shutdown
     logger.info("application_shutting_down")
+    await stop_background_tasks()
     await close_engine()
 
 

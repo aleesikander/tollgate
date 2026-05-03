@@ -3,7 +3,10 @@
 import enum
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from tollgate.models.approval_request import ApprovalRequest
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -58,3 +61,9 @@ class Action(Base, UUIDMixin, TimestampMixin):
 
     # Relationships
     agent: Mapped["Agent"] = relationship("Agent", back_populates="actions")
+    approval_request: Mapped["ApprovalRequest | None"] = relationship(
+        "ApprovalRequest",
+        back_populates="action",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )

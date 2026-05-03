@@ -13,6 +13,7 @@ from tollgate.models.base import Base, TimestampMixin, UUIDMixin
 if TYPE_CHECKING:
     from tollgate.models.action import Action
     from tollgate.models.organization import Organization
+    from tollgate.models.policy import Policy
 
 
 class AgentStatus(str, enum.Enum):
@@ -46,6 +47,11 @@ class Agent(Base, UUIDMixin, TimestampMixin):
     organization: Mapped["Organization"] = relationship("Organization", back_populates="agents")
     actions: Mapped[list["Action"]] = relationship(
         "Action",
+        back_populates="agent",
+        cascade="all, delete-orphan",
+    )
+    policies: Mapped[list["Policy"]] = relationship(
+        "Policy",
         back_populates="agent",
         cascade="all, delete-orphan",
     )

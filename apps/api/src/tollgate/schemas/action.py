@@ -20,3 +20,11 @@ class CheckResponse(BaseModel):
     decision: Literal["allowed", "denied", "pending"]
     action_id: uuid.UUID
     reason: str
+
+
+class ActionStatusResponse(BaseModel):
+    """Response schema for action status check."""
+
+    action_id: uuid.UUID
+    decision: Literal["allowed", "denied", "pending", "approved", "rejected"]
+    reason: str
