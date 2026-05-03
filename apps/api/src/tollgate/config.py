@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     jwt_secret: str = "your-super-secret-jwt-key-change-in-production"
     jwt_expiry_days: int = 7
 
+    # API Key HMAC Secret (for fast API key verification)
+    # Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
+    api_key_hmac_secret: str = "your-api-key-hmac-secret-change-in-production"
+
     # Logging
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     log_format: Literal["json", "console"] = "json"

@@ -1,12 +1,14 @@
 """Agent service."""
 
+import hashlib
+import hmac
 import secrets
 import uuid
 
-import bcrypt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from tollgate.config import get_settings
 from tollgate.logging import get_logger
 from tollgate.models import Agent, AgentStatus
 
@@ -31,6 +33,7 @@ class AgentService:
 
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+        self._hmac_secret = get_settings().api_key_hmac_secret.encode()
 
     def _generate_api_key(self) -> str:
         """Generate a new API key."""
@@ -38,13 +41,27 @@ class AgentService:
         return f"{API_KEY_PREFIX}{random_hex}"
 
     def _hash_api_key(self, api_key: str) -> str:
-        """Hash an API key using bcrypt."""
-        salt = bcrypt.gensalt()
-        return bcrypt.hashpw(api_key.encode(), salt).decode()
+        """Hash an API key using HMAC-SHA256.
 
-    def _verify_api_key(self, api_key: str, hashed: str) -> bool:
-        """Verify an API key against a hash."""
-        return bcrypt.checkpw(api_key.encode(), hashed.encode())
+        HMAC is used instead of bcrypt for API keys because:
+        - API keys are high-entropy random strings (not user passwords)
+        - HMAC verification is ~1000x faster than bcrypt
+        - This enables <50ms latency for /v1/check endpoint
+        """
+        return hmac.new(
+            self._hmac_secret,
+            api_key.encode(),
+            hashlib.sha256,
+        ).hexdigest()
+
+    def _verify_api_key(self, api_key: str, stored_hash: str) -> bool:
+        """Verify an API key against a stored hash.
+
+        Uses secrets.compare_digest for constant-time comparison
+        to prevent timing attacks.
+        """
+        computed_hash = self._hash_api_key(api_key)
+        return secrets.compare_digest(computed_hash, stored_hash)
 
     def _get_key_prefix(self, api_key: str) -> str:
         """Get the first 11 characters of an API key for display."""
@@ -104,6 +121,11 @@ class AgentService:
         """Authenticate an agent by API key.
 
         Returns the agent if authentication succeeds, None otherwise.
+
+        Lookup strategy:
+        1. Extract prefix from key (first 11 chars)
+        2. Query agent by prefix (indexed, fast)
+        3. HMAC the full key and compare with stored hash
         """
         if not api_key.startswith(API_KEY_PREFIX):
             return None

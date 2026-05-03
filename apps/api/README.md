@@ -397,8 +397,23 @@ alembic downgrade -1
 | `REDIS_URL` | Redis connection string | `redis://localhost:6379/0` |
 | `JWT_SECRET` | Secret for signing JWTs | (required in production) |
 | `JWT_EXPIRY_DAYS` | JWT token expiry in days | `7` |
+| `API_KEY_HMAC_SECRET` | Secret for API key HMAC verification | (required in production) |
 | `LOG_LEVEL` | Logging level | `INFO` |
 | `LOG_FORMAT` | Log format (`json` or `console`) | `json` |
+
+Generate secrets with:
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+## Security: Password vs API Key Hashing
+
+Tollgate uses different hashing strategies for passwords and API keys:
+
+| Type | Algorithm | Reason |
+|------|-----------|--------|
+| **User passwords** | bcrypt | Passwords are low-entropy (user-chosen). bcrypt's slowness (~100ms) is a feature that protects against brute-force attacks. |
+| **API keys** | HMAC-SHA256 | API keys are high-entropy (random 128-bit). HMAC is fast (<1ms) which enables <50ms p50 latency for `/v1/check`. The entropy of the key provides the security, not the hash function's slowness. |
 
 ## Architecture
 

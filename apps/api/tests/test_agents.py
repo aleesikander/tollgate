@@ -35,7 +35,7 @@ async def test_create_agent_returns_key_once(
 async def test_agent_key_is_hashed_in_db(
     client: AsyncClient, auth_headers: dict[str, str], test_session: AsyncSession
 ) -> None:
-    """Test that API key is stored as bcrypt hash, not plaintext."""
+    """Test that API key is stored as HMAC-SHA256 hash, not plaintext."""
     response = await client.post(
         "/agents",
         json={"name": "Hash Test Agent"},
@@ -52,10 +52,41 @@ async def test_agent_key_is_hashed_in_db(
 
     # API key should NOT be stored as plaintext
     assert agent.api_key_hash != api_key
-    # Should be a bcrypt hash (starts with $2b$)
-    assert agent.api_key_hash.startswith("$2b$")
+    # Should be an HMAC-SHA256 hash (64 hex chars, deterministic)
+    assert len(agent.api_key_hash) == 64
+    assert all(c in "0123456789abcdef" for c in agent.api_key_hash)
     # Prefix should match
     assert agent.api_key_prefix == api_key[:11]
+
+
+@pytest.mark.asyncio
+async def test_api_key_hmac_is_deterministic(
+    client: AsyncClient, auth_headers: dict[str, str], test_session: AsyncSession
+) -> None:
+    """Test that HMAC hash is deterministic for the same input."""
+    from tollgate.services.agent import AgentService
+
+    response = await client.post(
+        "/agents",
+        json={"name": "HMAC Test Agent"},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    api_key = data["api_key"]
+
+    # Get the stored hash
+    result = await test_session.execute(select(Agent).where(Agent.id == data["id"]))
+    agent = result.scalar_one()
+    stored_hash = agent.api_key_hash
+
+    # Create a new service instance and hash the same key
+    service = AgentService(test_session)
+    computed_hash = service._hash_api_key(api_key)
+
+    # HMAC is deterministic - same input always produces same output
+    assert computed_hash == stored_hash
 
 
 @pytest.mark.asyncio

@@ -36,7 +36,7 @@ class Agent(Base, UUIDMixin, TimestampMixin):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     api_key_hash: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    api_key_prefix: Mapped[str] = mapped_column(String(20), nullable=False)
+    api_key_prefix: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     status: Mapped[AgentStatus] = mapped_column(
         Enum(AgentStatus, name="agent_status", values_callable=lambda x: [e.value for e in x]),
         nullable=False,
