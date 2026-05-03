@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tollgate.config import get_settings
-from tollgate.dependencies import AuthenticatedUser, DBSession
+from tollgate.dependencies import AuthenticatedUser, DBSession, SlackServiceDep
 from tollgate.logging import get_logger
 from tollgate.models import Action, Agent, ApprovalRequest, ApprovalStatus, Decision, User
 from tollgate.services.approval import ApprovalService
@@ -40,14 +40,13 @@ class SlackIntegrationResponse(BaseModel):
 
 @router.get("/install")
 async def install_slack(
-    session: DBSession,
     current_user: AuthenticatedUser,
+    slack_service: SlackServiceDep,
 ) -> RedirectResponse:
     """Redirect to Slack OAuth flow."""
     # Generate state token with user/org info for callback
     state = f"{current_user.org_id}:{current_user.id}"
 
-    slack_service = SlackService(session)
     oauth_url = slack_service.get_oauth_url(state)
 
     return RedirectResponse(url=oauth_url, status_code=302)
@@ -57,7 +56,7 @@ async def install_slack(
 async def slack_callback(
     code: str,
     state: str,
-    session: DBSession,
+    slack_service: SlackServiceDep,
 ) -> RedirectResponse:
     """Handle Slack OAuth callback."""
     settings = get_settings()
@@ -73,7 +72,6 @@ async def slack_callback(
             detail={"error": {"code": "INVALID_STATE", "message": "Invalid OAuth state"}},
         )
 
-    slack_service = SlackService(session)
     try:
         await slack_service.exchange_code(code, org_id, user_id)
     except SlackError as e:
@@ -93,11 +91,10 @@ async def slack_callback(
 
 @router.delete("")
 async def uninstall_slack(
-    session: DBSession,
     current_user: AuthenticatedUser,
+    slack_service: SlackServiceDep,
 ) -> dict[str, str]:
     """Uninstall Slack integration."""
-    slack_service = SlackService(session)
     deleted = await slack_service.delete_integration(current_user.org_id)
 
     if not deleted:
@@ -183,6 +180,7 @@ VerifiedSlackBody = Annotated[bytes, Depends(get_verified_slack_body)]
 async def handle_interaction(
     body: VerifiedSlackBody,
     session: DBSession,
+    slack_service: SlackServiceDep,
 ) -> dict[str, Any]:
     """Handle Slack interactive component callbacks (button clicks)."""
     # Slack sends payload as form-encoded
@@ -197,7 +195,7 @@ async def handle_interaction(
 
     # Handle different interaction types
     if payload.get("type") == "block_actions":
-        return await handle_block_action(payload, session)
+        return await handle_block_action(payload, session, slack_service)
 
     return {"ok": True}
 
@@ -205,6 +203,7 @@ async def handle_interaction(
 async def handle_block_action(
     payload: dict[str, Any],
     session: AsyncSession,
+    slack_service: SlackService,
 ) -> dict[str, Any]:
     """Handle block action (button click)."""
     actions = payload.get("actions", [])
@@ -245,31 +244,13 @@ async def handle_block_action(
     if not integration:
         return {"ok": True}
 
-    slack_service = SlackService(session)
-
-    # Get the Slack user's email to find the Tollgate user
-    from slack_sdk.web.async_client import AsyncWebClient
-
-    from tollgate.encryption import decrypt
-
-    token = decrypt(integration.bot_token_encrypted)
-    client = AsyncWebClient(token=token)
-
-    try:
-        user_info = await client.users_info(user=slack_user_id)
-        slack_email = user_info.get("user", {}).get("profile", {}).get("email")
-    except Exception as e:
-        logger.error("slack_user_lookup_failed", error=str(e))
-        await slack_service.send_ephemeral_error(
-            response_url,
-            "❌ Could not verify your identity. Please try again.",
-        )
-        return {"ok": True}
+    # Get the Slack user's email via the service
+    slack_email = await slack_service.get_slack_user_email(integration, slack_user_id)
 
     if not slack_email:
         await slack_service.send_ephemeral_error(
             response_url,
-            "❌ Could not find your email address in Slack.",
+            "❌ Could not verify your identity. Please try again.",
         )
         return {"ok": True}
 
@@ -392,6 +373,7 @@ async def handle_block_action(
 async def handle_command(
     body: VerifiedSlackBody,
     session: DBSession,
+    slack_service: SlackServiceDep,
 ) -> dict[str, Any]:
     """Handle Slack slash commands."""
     from urllib.parse import parse_qs
@@ -429,7 +411,7 @@ async def handle_command(
         }
 
     if text == "pending" or text == "":
-        return await handle_pending_command(integration, session)
+        return await handle_pending_command(integration, slack_service)
 
     return {
         "response_type": "ephemeral",
@@ -439,10 +421,9 @@ async def handle_command(
 
 async def handle_pending_command(
     integration: "SlackIntegration",
-    session: AsyncSession,
+    slack_service: SlackService,
 ) -> dict[str, Any]:
     """Handle /tollgate pending command."""
-    slack_service = SlackService(session)
     pending = await slack_service.get_pending_approvals_for_org(integration.org_id)
 
     if not pending:

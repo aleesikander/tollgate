@@ -521,3 +521,30 @@ class SlackService:
             )
         )
         return result.scalar_one_or_none()
+
+    async def get_slack_user_email(
+        self,
+        integration: SlackIntegration,
+        slack_user_id: str,
+    ) -> str | None:
+        """Get a Slack user's email address.
+
+        Args:
+            integration: The Slack integration with bot token
+            slack_user_id: The Slack user ID (e.g., U12345678)
+
+        Returns:
+            The user's email address, or None if not found
+        """
+        client = self._get_client(integration)
+
+        try:
+            user_info = await client.users_info(user=slack_user_id)
+            return user_info.get("user", {}).get("profile", {}).get("email")
+        except SlackApiError as e:
+            logger.error(
+                "slack_user_lookup_failed",
+                slack_user_id=slack_user_id,
+                error=str(e),
+            )
+            return None

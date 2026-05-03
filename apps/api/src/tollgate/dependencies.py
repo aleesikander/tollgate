@@ -107,3 +107,16 @@ async def get_current_agent(
 
 
 AuthenticatedAgent = Annotated[CurrentAgent, Depends(get_current_agent)]
+
+
+# Service dependencies - allows test mocking via dependency override
+
+
+def get_slack_service(session: DBSession) -> "SlackService":
+    """Dependency that provides a SlackService instance."""
+    from tollgate.services.slack import SlackService
+
+    return SlackService(session)
+
+
+SlackServiceDep = Annotated["SlackService", Depends(get_slack_service)]
