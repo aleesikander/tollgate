@@ -1,5 +1,6 @@
 """Check endpoint for agent action requests."""
 
+import asyncio
 import uuid
 
 from fastapi import APIRouter, HTTPException, status
@@ -31,12 +32,26 @@ async def check_action(
     - pending: Action requires approval (use GET /v1/check/{action_id} to poll)
     """
     action_service = ActionService(session)
-    action = await action_service.check_action(
+    action, pending_info = await action_service.check_action(
         agent_id=current_agent.id,
         action_name=request.action_name,
         payload=request.payload,
         idempotency_key=request.idempotency_key,
     )
+
+    # If pending, trigger Slack notification (fire-and-forget)
+    if pending_info:
+        from tollgate.services.slack_notifier import notify_approval_required
+
+        asyncio.create_task(
+            notify_approval_required(
+                action_id=action.id,
+                agent_id=current_agent.id,
+                approvers=pending_info["approvers"],
+                rule_reason=pending_info["reason"],
+                expires_at=pending_info["expires_at"],
+            )
+        )
 
     # Map Decision enum to response literal
     decision_map = {

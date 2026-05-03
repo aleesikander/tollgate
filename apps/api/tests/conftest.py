@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from tollgate.database import reset_engine
 from tollgate.dependencies import get_db_session
 from tollgate.main import app
-from tollgate.models import Base
+from tollgate.models import Agent, Base, Organization, User
 
 # Use test database
 TEST_DATABASE_URL = os.environ.get(
@@ -102,3 +102,58 @@ async def agent_api_key(client: AsyncClient, auth_headers: dict[str, str]) -> st
 async def agent_headers(agent_api_key: str) -> dict[str, str]:
     """Return headers with agent API key."""
     return {"Authorization": f"Bearer {agent_api_key}"}
+
+
+# Async session for direct model manipulation in tests
+@pytest.fixture
+async def async_session(test_session: AsyncSession) -> AsyncSession:
+    """Alias for test_session for consistency with test_slack.py naming."""
+    return test_session
+
+
+@pytest.fixture
+async def async_client(client: AsyncClient) -> AsyncClient:
+    """Alias for client for consistency with test_slack.py naming."""
+    return client
+
+
+# Fixtures for Slack tests that need direct model access
+@pytest.fixture
+async def test_org(async_session: AsyncSession) -> Organization:
+    """Create a test organization."""
+    org = Organization(name="Test Org", slug="test-org")
+    async_session.add(org)
+    await async_session.flush()
+    return org
+
+
+@pytest.fixture
+async def test_user(async_session: AsyncSession, test_org: Organization) -> User:
+    """Create a test user."""
+    import bcrypt
+
+    user = User(
+        org_id=test_org.id,
+        email="test@test-org.com",
+        hashed_password=bcrypt.hashpw("testpassword123".encode(), bcrypt.gensalt()).decode(),
+        role="owner",
+    )
+    async_session.add(user)
+    await async_session.flush()
+    return user
+
+
+@pytest.fixture
+async def test_agent(async_session: AsyncSession, test_org: Organization) -> Agent:
+    """Create a test agent with known API key."""
+    from tollgate.services.agent import AgentService
+
+    # Create agent via service to get proper key hashing
+    agent_service = AgentService(async_session)
+    agent, api_key = await agent_service.create_agent(
+        org_id=test_org.id,
+        name="Test Agent",
+    )
+    # Store the API key on the agent object for tests
+    agent._test_api_key = api_key  # type: ignore
+    return agent

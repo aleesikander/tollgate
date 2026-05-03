@@ -65,13 +65,18 @@ class ActionService:
         action_name: str,
         payload: dict[str, Any],
         idempotency_key: str,
-    ) -> Action:
+    ) -> tuple[Action, dict[str, Any] | None]:
         """Process a check request and return the action.
 
         Handles idempotency: if the same idempotency_key is used for the same
         agent, returns the existing action instead of creating a new one.
 
         Evaluates the active policy for the agent and returns the decision.
+
+        Returns:
+            Tuple of (Action, pending_info) where pending_info is None unless
+            the decision is pending, in which case it contains info for Slack
+            notification: {"approvers": [...], "reason": "...", "expires_at": datetime}
         """
         # Check for existing action with same idempotency key
         result = await self.session.execute(
@@ -88,7 +93,7 @@ class ActionService:
                 action_id=str(existing_action.id),
                 agent_id=str(agent_id),
             )
-            return existing_action
+            return existing_action, None
 
         # Get active policy
         policy = await self._get_active_policy(agent_id)
@@ -116,7 +121,7 @@ class ActionService:
                 decision="allowed",
                 reason="no policies configured",
             )
-            return action
+            return action, None
 
         # Evaluate policy
         eval_result = evaluate(policy.parsed_json, action_name, payload)
@@ -147,12 +152,18 @@ class ActionService:
         await self.session.flush()
 
         # Create approval request if pending
+        pending_info: dict[str, Any] | None = None
         if decision == Decision.PENDING:
             approval_service = ApprovalService(self.session)
-            await approval_service.create_approval_request(
+            approval_request = await approval_service.create_approval_request(
                 action_id=action.id,
                 approvers=eval_result.approvers,
             )
+            pending_info = {
+                "approvers": eval_result.approvers,
+                "reason": eval_result.reason,
+                "expires_at": approval_request.expires_at,
+            }
 
         logger.info(
             "action_checked",
@@ -163,7 +174,7 @@ class ActionService:
             reason=eval_result.reason,
         )
 
-        return action
+        return action, pending_info
 
     async def get_action(self, action_id: uuid.UUID) -> Action | None:
         """Get an action by ID with its approval request if any."""

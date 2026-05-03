@@ -9,6 +9,7 @@ from tollgate.models.base import Base, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from tollgate.models.agent import Agent
+    from tollgate.models.slack_integration import SlackIntegration
     from tollgate.models.user import User
 
 
@@ -29,5 +30,11 @@ class Organization(Base, UUIDMixin, TimestampMixin):
     agents: Mapped[list["Agent"]] = relationship(
         "Agent",
         back_populates="organization",
+        cascade="all, delete-orphan",
+    )
+    slack_integration: Mapped["SlackIntegration | None"] = relationship(
+        "SlackIntegration",
+        back_populates="organization",
+        uselist=False,
         cascade="all, delete-orphan",
     )

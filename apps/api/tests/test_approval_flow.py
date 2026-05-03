@@ -337,9 +337,9 @@ async def test_approval_expiry(
     # Run expiry service
     from tollgate.services.approval import ApprovalService
     approval_service = ApprovalService(test_session)
-    expired_count = await approval_service.expire_pending_approvals()
+    expired_ids = await approval_service.expire_pending_approvals()
 
-    assert expired_count == 1
+    assert len(expired_ids) == 1
 
     # Check action is now rejected
     result = await test_session.execute(

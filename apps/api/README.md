@@ -389,6 +389,76 @@ Rollback:
 alembic downgrade -1
 ```
 
+## Slack Integration
+
+Tollgate integrates with Slack to send approval notifications and allow approvers to approve/reject actions directly from Slack.
+
+### Setup
+
+1. **Create a Slack App**
+
+   Go to https://api.slack.com/apps and click "Create New App" -> "From an app manifest".
+
+   Copy the contents of `slack-app-manifest.yaml` from the repo root, updating the URLs to match your deployment.
+
+2. **Get Credentials**
+
+   From your Slack app's "Basic Information" page:
+   - Copy `Client ID` -> `SLACK_CLIENT_ID`
+   - Copy `Client Secret` -> `SLACK_CLIENT_SECRET`
+   - Copy `Signing Secret` -> `SLACK_SIGNING_SECRET`
+
+3. **Generate Encryption Key**
+
+   ```bash
+   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+   ```
+
+   Set this as `ENCRYPTION_KEY` in your .env file.
+
+4. **Install to Workspace**
+
+   Users can install via `GET /integrations/slack/install` (requires JWT auth).
+
+### Slack Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /integrations/slack/install` | Start OAuth flow (JWT auth required) |
+| `GET /integrations/slack/callback` | OAuth callback |
+| `DELETE /integrations/slack` | Uninstall integration (JWT auth required) |
+| `POST /integrations/slack/interactions` | Button click handler |
+| `POST /integrations/slack/commands` | Slash command handler |
+
+### Slash Commands
+
+- `/tollgate` or `/tollgate pending` - List pending approvals in the workspace
+
+### How It Works
+
+1. When an action requires approval (`decide: require_approval`), Tollgate sends a Slack message to the configured channel
+2. The message includes Approve/Reject buttons
+3. Clicking a button updates the action decision
+4. The agent's next poll to `GET /v1/check/{action_id}` returns the new decision
+
+### Notification Flow
+
+```
+Agent calls POST /v1/check -> decision: pending
+                          |
+                          v
+             Slack notification sent (fire-and-forget)
+                          |
+                          v
+              Approver clicks button in Slack
+                          |
+                          v
+           Action updated to approved/rejected
+                          |
+                          v
+Agent polls GET /v1/check/{id} -> decision: allowed/denied
+```
+
 ## Environment Variables
 
 | Variable | Description | Default |
@@ -398,12 +468,21 @@ alembic downgrade -1
 | `JWT_SECRET` | Secret for signing JWTs | (required in production) |
 | `JWT_EXPIRY_DAYS` | JWT token expiry in days | `7` |
 | `API_KEY_HMAC_SECRET` | Secret for API key HMAC verification | (required in production) |
+| `SLACK_CLIENT_ID` | Slack OAuth client ID | (optional) |
+| `SLACK_CLIENT_SECRET` | Slack OAuth client secret | (optional) |
+| `SLACK_SIGNING_SECRET` | Slack request signing secret | (optional) |
+| `ENCRYPTION_KEY` | Fernet key for encrypting secrets | (optional) |
+| `DASHBOARD_URL` | URL for OAuth redirects | `http://localhost:3000` |
 | `LOG_LEVEL` | Logging level | `INFO` |
 | `LOG_FORMAT` | Log format (`json` or `console`) | `json` |
 
 Generate secrets with:
 ```bash
+# For JWT and API key secrets:
 python -c "import secrets; print(secrets.token_urlsafe(32))"
+
+# For encryption key:
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
 
 ## Security: Password vs API Key Hashing

@@ -1,0 +1,33 @@
+display_information:
+  name: Tollgate
+  description: AI Agent Policy & Approval Layer
+  background_color: "#2c2d30"
+
+features:
+  bot_user:
+    display_name: Tollgate
+    always_online: true
+  slash_commands:
+    - command: /tollgate
+      url: https://97ed-39-58-206-231.ngrok-free.app/integrations/slack/commands
+      description: Manage Tollgate approvals
+      usage_hint: "[pending]"
+      should_escape: false
+
+oauth_config:
+  redirect_urls:
+    - https://97ed-39-58-206-231.ngrok-free.app/integrations/slack/callback
+  scopes:
+    bot:
+      - chat:write
+      - commands
+      - users:read
+      - users:read.email
+
+settings:
+  interactivity:
+    is_enabled: true
+    request_url: https://97ed-39-58-206-231.ngrok-free.app/integrations/slack/interactions
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false

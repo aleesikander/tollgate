@@ -141,11 +141,11 @@ class ApprovalService:
 
         return approval, action
 
-    async def expire_pending_approvals(self) -> int:
+    async def expire_pending_approvals(self) -> list[uuid.UUID]:
         """Expire all pending approval requests that have passed their expiry time.
 
         Returns:
-            Number of expired requests
+            List of expired approval request IDs (for Slack message updates)
         """
         now = datetime.now(UTC)
 
@@ -159,9 +159,10 @@ class ApprovalService:
         expired_approvals = list(result.scalars().all())
 
         if not expired_approvals:
-            return 0
+            return []
 
-        # Update approval requests
+        # Collect IDs for return
+        expired_ids = [a.id for a in expired_approvals]
         action_ids = [a.action_id for a in expired_approvals]
 
         await self.session.execute(
@@ -188,4 +189,4 @@ class ApprovalService:
 
         logger.info("approvals_expired", count=len(expired_approvals))
 
-        return len(expired_approvals)
+        return expired_ids

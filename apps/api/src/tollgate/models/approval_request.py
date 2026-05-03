@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -62,6 +62,10 @@ class ApprovalRequest(Base, UUIDMixin, TimestampMixin):
         DateTime(timezone=True),
         nullable=False,
     )
+
+    # Slack notification tracking
+    slack_channel: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    slack_message_ts: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # Relationships
     action: Mapped["Action"] = relationship("Action", back_populates="approval_request")

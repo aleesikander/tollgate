@@ -33,6 +33,18 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     log_format: Literal["json", "console"] = "json"
 
+    # Slack Integration
+    slack_client_id: str = ""
+    slack_client_secret: str = ""
+    slack_signing_secret: str = ""
+
+    # Encryption key for storing sensitive data (Slack tokens)
+    # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    encryption_key: str = ""
+
+    # Dashboard URL for OAuth redirects
+    dashboard_url: str = "http://localhost:3000"
+
 
 @lru_cache
 def get_settings() -> Settings:

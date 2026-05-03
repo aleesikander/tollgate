@@ -16,6 +16,7 @@ async def expire_approvals_loop(interval_seconds: float = 30.0) -> None:
     """Background loop that expires pending approvals.
 
     Runs every interval_seconds and marks expired pending approvals as rejected.
+    Also updates Slack messages for expired approvals.
 
     Args:
         interval_seconds: How often to check for expired approvals
@@ -28,10 +29,15 @@ async def expire_approvals_loop(interval_seconds: float = 30.0) -> None:
 
             async with get_session_context() as session:
                 approval_service = ApprovalService(session)
-                expired_count = await approval_service.expire_pending_approvals()
+                expired_ids = await approval_service.expire_pending_approvals()
 
-                if expired_count > 0:
-                    logger.info("expired_pending_approvals", count=expired_count)
+                if expired_ids:
+                    logger.info("expired_pending_approvals", count=len(expired_ids))
+
+                    # Update Slack messages for expired approvals (fire-and-forget)
+                    from tollgate.services.slack_notifier import update_expired_slack_messages
+
+                    asyncio.create_task(update_expired_slack_messages(expired_ids))
 
         except asyncio.CancelledError:
             logger.info("expiry_task_cancelled")

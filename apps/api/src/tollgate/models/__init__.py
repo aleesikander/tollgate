@@ -6,6 +6,7 @@ from tollgate.models.approval_request import ApprovalRequest, ApprovalStatus
 from tollgate.models.base import Base
 from tollgate.models.organization import Organization
 from tollgate.models.policy import Policy
+from tollgate.models.slack_integration import SlackIntegration
 from tollgate.models.user import User, UserRole
 
 __all__ = [
@@ -18,6 +19,7 @@ __all__ = [
     "Decision",
     "Organization",
     "Policy",
+    "SlackIntegration",
     "User",
     "UserRole",
 ]
