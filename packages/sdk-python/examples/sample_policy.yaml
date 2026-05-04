@@ -1,0 +1,15 @@
+version: 1
+rules:
+  - action: issue_refund
+    when:
+      amount: { lte: 100 }
+    decide: allow
+  - action: issue_refund
+    when:
+      amount: { gt: 100 }
+    decide: require_approval
+    approvers: ["#approvals"]
+  - action: delete_account
+    decide: deny
+    reason: "Account deletion is not permitted via agent"
+default: allow

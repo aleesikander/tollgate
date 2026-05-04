@@ -1,5 +1,15 @@
 # Tollgate Build Log
 
+## 2026-05-04: Python SDK (Prompt 4)
+
+- **Package**: `packages/sdk-python/` — `tollgate-sdk`, Python 3.10+
+- **Core patterns**: `@tg.guard()` decorator, `with tg.check()` context manager, explicit `tg.check_action()`
+- **Pending polling**: polls `GET /v1/check/{action_id}` every 2s; handles `approved`/`rejected`/`expired` responses
+- **`fail_open`**: network errors either raise `TollgateConnectionError` (default) or allow through with warning log
+- **Async**: `AsyncTollgate` mirrors sync client with `httpx.AsyncClient` and `asyncio.sleep`
+- **Tests**: 28 tests, all passing, respx HTTP mocking, mypy strict clean
+- **Example**: `packages/sdk-python/examples/support_agent.py` — Claude-backed support agent with 3 guarded tools
+
 Notable technical decisions and changes during development.
 
 ## 2025-05-04: Removed Hardcoded ngrok URLs
