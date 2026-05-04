@@ -3,7 +3,7 @@
 from fastapi import APIRouter
 
 from tollgate.routes import agents, auth, health, policies, slack
-from tollgate.routes.v1 import actions, check
+from tollgate.routes.v1 import actions, check, dashboard
 
 # Main router
 router = APIRouter()
@@ -16,3 +16,4 @@ router.include_router(policies.router, tags=["policies"])
 router.include_router(slack.router, tags=["slack"])
 router.include_router(check.router, prefix="/v1", tags=["v1"])
 router.include_router(actions.router, prefix="/v1", tags=["v1"])
+router.include_router(dashboard.router, prefix="/v1", tags=["dashboard"])

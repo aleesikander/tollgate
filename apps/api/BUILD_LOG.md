@@ -10,6 +10,17 @@
 - **Tests**: 28 tests, all passing, respx HTTP mocking, mypy strict clean
 - **Example**: `packages/sdk-python/examples/support_agent.py` — Claude-backed support agent with 3 guarded tools
 
+## 2026-05-05: Reverted AI Policy Generator
+
+Reverted AI policy generator feature (was scope creep, not in any prompt spec). Code preserved on `feature/ai-policy-generator` branch for potential future use.
+
+Audit revealed the following other unscoped changes made during Prompts 5-6 (all intentional, listed for transparency):
+- `apps/api/src/tollgate/main.py` — added `CORSMiddleware` for `localhost:3000` to allow the dashboard dev server to reach the API. Needed for Prompt 5 to function.
+- `apps/api/src/tollgate/routes/v1/dashboard.py` — new file adding `/v1/audit`, `/v1/audit/hourly`, `/v1/stats`, and `POST /v1/check/{id}/decide` endpoints. Built for Prompt 5 dashboard; not separately spec'd in any API prompt.
+- `packages/sdk-python/tests/test_integration.py` — integration test stub gated on `RUN_INTEGRATION_TESTS=1`. Not in Prompt 4 spec; added proactively alongside Prompt 6 SDK work.
+- `packages/sdk-typescript/tests/integration.test.ts` — same, TypeScript SDK integration test stub.
+- Pre-existing mypy errors in `apps/api/src/tollgate/routes/slack.py` (4 errors) — in the committed Prompt 3 code before this session began, not introduced here.
+
 Notable technical decisions and changes during development.
 
 ## 2025-05-04: Removed Hardcoded ngrok URLs

@@ -63,3 +63,53 @@ Thumbs.db
 # Logs
 *.log
 logs/
+# Node / TypeScript
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.turbo/
+.next/
+.vercel/
+out/
+
+# Package manager files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files (already partially covered — extending)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Test outputs
+coverage/
+.nyc_output/
+
+# Python tooling
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Build / distribution artifacts
+*.pyc
+*.pyo
+
+# Local scratch files
+/tmp/
+*.local
