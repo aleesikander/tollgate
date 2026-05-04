@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     # Dashboard URL for OAuth redirects
     dashboard_url: str = "http://localhost:3000"
 
+    # Public base URL for API (ngrok URL in dev, real domain in production)
+    # Used for Slack OAuth callbacks and webhook URLs
+    # No default - must be provided
+    public_base_url: str
+
 
 @lru_cache
 def get_settings() -> Settings:

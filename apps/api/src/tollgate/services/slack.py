@@ -43,13 +43,11 @@ class SlackService:
 
     def get_oauth_url(self, state: str) -> str:
         """Generate Slack OAuth authorization URL."""
-        scopes = "chat:write,chat:write.public,users:read,users:read.email,commands,im:write"
-        redirect_uri = f"{self._settings.dashboard_url.rstrip('/')}/integrations/slack/callback"
+        from urllib.parse import urljoin
 
-        # Use ngrok URL if dashboard_url is localhost
-        if "localhost" in self._settings.dashboard_url:
-            # In dev, we use the API server's callback endpoint
-            redirect_uri = "https://97ed-39-58-206-231.ngrok-free.app/integrations/slack/callback"
+        scopes = "chat:write,chat:write.public,users:read,users:read.email,commands,im:write"
+        base_url = self._settings.public_base_url.rstrip("/")
+        redirect_uri = f"{base_url}/integrations/slack/callback"
 
         return (
             f"https://slack.com/oauth/v2/authorize"
@@ -68,7 +66,8 @@ class SlackService:
         """Exchange OAuth code for access token and store integration."""
         client = AsyncWebClient()
 
-        redirect_uri = "https://97ed-39-58-206-231.ngrok-free.app/integrations/slack/callback"
+        base_url = self._settings.public_base_url.rstrip("/")
+        redirect_uri = f"{base_url}/integrations/slack/callback"
 
         try:
             response = await client.oauth_v2_access(

@@ -395,11 +395,27 @@ Tollgate integrates with Slack to send approval notifications and allow approver
 
 ### Setup
 
-1. **Create a Slack App**
+1. **Set PUBLIC_BASE_URL**
+
+   The `PUBLIC_BASE_URL` env var is required for Slack integration. This is the publicly accessible URL of your API server.
+
+   **In development** (using ngrok):
+   ```bash
+   # Start ngrok to expose your local server
+   ngrok http 8000
+
+   # Copy the https URL (e.g., https://abc123.ngrok-free.app)
+   # Add to your .env file:
+   PUBLIC_BASE_URL=https://abc123.ngrok-free.app
+   ```
+
+   **In production**: Use your real domain (e.g., `https://api.tollgate.io`).
+
+2. **Create a Slack App**
 
    Go to https://api.slack.com/apps and click "Create New App" -> "From an app manifest".
 
-   Copy the contents of `slack-app-manifest.yaml` from the repo root, updating the URLs to match your deployment.
+   Copy the contents of `slack-app-manifest.yaml` from the repo root, replacing the ngrok URLs with your `PUBLIC_BASE_URL`.
 
 2. **Get Credentials**
 
@@ -473,6 +489,7 @@ Agent polls GET /v1/check/{id} -> decision: allowed/denied
 | `SLACK_SIGNING_SECRET` | Slack request signing secret | (optional) |
 | `ENCRYPTION_KEY` | Fernet key for encrypting secrets | (optional) |
 | `DASHBOARD_URL` | URL for OAuth redirects | `http://localhost:3000` |
+| `PUBLIC_BASE_URL` | Publicly accessible URL of the API (ngrok URL in dev) | (required for Slack) |
 | `LOG_LEVEL` | Logging level | `INFO` |
 | `LOG_FORMAT` | Log format (`json` or `console`) | `json` |
 

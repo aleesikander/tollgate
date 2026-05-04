@@ -2,6 +2,11 @@
 
 Notable technical decisions and changes during development.
 
+## 2025-05-04: Removed Hardcoded ngrok URLs
+
+- **Change**: Replaced hardcoded ngrok URLs with configurable `PUBLIC_BASE_URL` env var
+- **Impact**: Slack OAuth callbacks now use `settings.public_base_url` instead of hardcoded URLs
+
 ## 2025-05-03: Slack Integration (Prompt 3)
 
 - **Feature**: Full Slack integration for human-in-the-loop approval workflows

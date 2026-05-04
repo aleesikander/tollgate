@@ -1,3 +1,12 @@
+# Slack App Manifest for Tollgate
+#
+# This manifest contains dev-specific URLs that need to be updated per environment.
+# Replace the ngrok URLs below with your PUBLIC_BASE_URL when setting up a new dev environment.
+#
+# Example: If your PUBLIC_BASE_URL is https://abc123.ngrok-free.app, replace all occurrences of
+# https://97ed-39-58-206-231.ngrok-free.app with https://abc123.ngrok-free.app
+#
+
 display_information:
   name: Tollgate
   description: AI Agent Policy & Approval Layer
@@ -20,7 +29,9 @@ oauth_config:
   scopes:
     bot:
       - chat:write
+      - chat:write.public
       - commands
+      - im:write
       - users:read
       - users:read.email
 
