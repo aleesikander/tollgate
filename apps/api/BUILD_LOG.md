@@ -10,6 +10,18 @@
 - **Tests**: 28 tests, all passing, respx HTTP mocking, mypy strict clean
 - **Example**: `packages/sdk-python/examples/support_agent.py` — Claude-backed support agent with 3 guarded tools
 
+## 2026-05-05: TypeScript SDK (Prompt 6)
+
+- **Package**: `packages/sdk-typescript/` — `@tollgate/sdk`, Node 18+
+- **Core patterns**: `tg.guard()` wrapper with optional payload mapper, `tg.checkAction()` explicit, `tg.withCheck()` context wrapper
+- **Build**: tsup dual ESM/CJS + `.d.ts` declarations
+- **Tests**: 28 tests, all passing, msw v2 HTTP mocking, zero type errors
+- **Example**: `packages/sdk-typescript/examples/support-agent.ts` — Claude-backed support agent with 3 guarded tools
+
+Fixed TypeScript SDK package name from `tollgate-sdk` to `@tollgate/sdk` per Prompt 6 spec.
+Fixed SDK public API class names to match Prompt 6 spec: `Tollgate` (not `TollgateClient`), `ActionDenied` (not `ActionDeniedError`), `ActionPending` (not `ActionPendingError`). Both Python and TypeScript SDKs.
+Fixed TypeScript SDK missing auto-generated idempotency_key — every /v1/check call was failing with 422. Also fixed response field mismatch: API returns `action_id` but SDK was reading `.id` (breaking polling). Added integration test files in both SDKs for future regression coverage.
+
 Notable technical decisions and changes during development.
 
 ## 2025-05-04: Removed Hardcoded ngrok URLs

@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
     encryption_key: str = ""
 
+    # Anthropic API key for AI policy generation
+    anthropic_api_key: str = ""
+
     # Dashboard URL for OAuth redirects
     dashboard_url: str = "http://localhost:3000"
 
