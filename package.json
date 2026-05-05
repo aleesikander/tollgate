@@ -1,0 +1,20 @@
+{
+  "name": "tollgate",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:landing": "npm run dev -w apps/landing",
+    "dev:docs": "npm run dev -w apps/docs",
+    "dev:dashboard": "npm run dev -w apps/dashboard",
+    "build:landing": "npm run build -w apps/landing",
+    "build:docs": "npm run build -w apps/docs",
+    "build:dashboard": "npm run build -w apps/dashboard"
+  },
+  "optionalDependencies": {
+    "lightningcss-darwin-arm64": "^1.32.0"
+  }
+}

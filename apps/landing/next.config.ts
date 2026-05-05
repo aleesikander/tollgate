@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
+const config: NextConfig = {
   transpilePackages: ["@tollgate/ui"],
 };
 
-export default nextConfig;
+export default config;

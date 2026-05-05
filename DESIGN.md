@@ -320,3 +320,80 @@ Before any UI work is considered complete, it passes all of these:
 - [ ] Copy matches the copy library exactly. No paraphrases.
 - [ ] Mark is rendered at correct size and uses correct color tokens.
 - [ ] Lowercase brand name everywhere (`tollgate`, never `Tollgate`).
+
+---
+
+## tailwind v4 implementation reference
+
+How the design tokens above are exposed to Tailwind utility classes. Phase 3 onward should use these utility names directly.
+
+### colors
+
+All color tokens are defined as `--color-{name}` in `packages/ui/src/styles/tokens.css`. Tailwind v4 auto-generates `bg-{name}`, `text-{name}`, `border-{name}`, `fill-{name}`, `stroke-{name}` utilities from each.
+
+| utility | CSS variable | hex/rgba |
+|---|---|---|
+| `bg-page` | `--color-page` | `#0a0a0a` |
+| `bg-surface-1` | `--color-surface-1` | `#131313` |
+| `bg-surface-2` | `--color-surface-2` | `#1a1a1a` |
+| `text-primary` | `--color-primary` | `#ffffff` |
+| `text-secondary` | `--color-secondary` | `rgba(255,255,255,0.62)` |
+| `text-tertiary` | `--color-tertiary` | `rgba(255,255,255,0.42)` |
+| `text-quaternary` | `--color-quaternary` | `rgba(255,255,255,0.32)` |
+| `border-border-subtle` | `--color-border-subtle` | `rgba(255,255,255,0.07)` |
+| `border-border-default` | `--color-border-default` | `rgba(255,255,255,0.12)` |
+| `border-border-strong` | `--color-border-strong` | `rgba(255,255,255,0.2)` |
+| `text-accent` / `bg-accent` | `--color-accent` | `#F4533C` |
+| `text-accent-soft` | `--color-accent-soft` | `#FFB5A8` |
+| `bg-accent-bg` | `--color-accent-bg` | `rgba(244,83,60,0.06)` |
+| `border-accent-border` | `--color-accent-border` | `rgba(244,83,60,0.22)` |
+| `text-success` / `bg-success` | `--color-success` | `#5BD982` |
+| `bg-success-bg` | `--color-success-bg` | `rgba(40,200,100,0.05)` |
+| `border-success-border` | `--color-success-border` | `rgba(40,200,100,0.22)` |
+| `bg-slack-green` | `--color-slack-green` | `#1f7a3f` |
+
+### radius
+
+Radius tokens use `--radius-tg-{size}` prefix to avoid colliding with Tailwind's built-in `rounded-sm/md/lg` utilities. Always use the namespaced version.
+
+| utility | CSS variable | value |
+|---|---|---|
+| `rounded-tg-sm` | `--radius-tg-sm` | 4px |
+| `rounded-tg-md` | `--radius-tg-md` | 7px (buttons) |
+| `rounded-tg-lg` | `--radius-tg-lg` | 8px (cards) |
+| `rounded-tg-xl` | `--radius-tg-xl` | 12px (page frames) |
+| `rounded-tg-full` | `--radius-tg-full` | 9999px (pills) |
+
+### typography
+
+Type sizes use Tailwind v4's `--text-{name}` convention with associated `--text-{name}--line-height`, `--text-{name}--letter-spacing`, `--text-{name}--font-weight`, and `--text-{name}--font-family` (mono only). Each utility applies all properties at once.
+
+Pair `text-micro` with the `uppercase` utility — CSS variables don't carry `text-transform`.
+
+| utility | size | line-height | weight | letter-spacing | family |
+|---|---|---|---|---|---|
+| `text-display-xl` | 64px | 1.02 | 500 | -0.03em | sans |
+| `text-display-lg` | 48px | 1.05 | 500 | -0.025em | sans |
+| `text-display-md` | 32px | 1.05 | 500 | -0.025em | sans |
+| `text-heading-lg` | 24px | 1.2 | 500 | -0.015em | sans |
+| `text-heading-md` | 18px | 1.3 | 500 | -0.01em | sans |
+| `text-body-lg` | 15px | 1.6 | 400 | 0 | sans |
+| `text-body-md` | 13px | 1.65 | 400 | 0 | sans |
+| `text-body-sm` | 12px | 1.5 | 400 | 0 | sans |
+| `text-mono-md` | 12px | 1.5 | 400 | 0 | mono |
+| `text-mono-sm` | 10.5px | 1.5 | 400 | 0 | mono |
+| `text-micro` | 10px | 1.4 | 500 | 0.04em | sans + `uppercase` |
+
+### keyframes
+
+Defined globally in `tokens.css`, applied via inline CSS animation:
+className="animate-[tg-reveal_24s_infinite_cubic-bezier(0.2,0.8,0.2,1)]"
+className="animate-[tg-blink_1.1s_steps(1)_infinite]"
+className="animate-[tg-pulse_1.4s_ease-in-out_infinite]"
+className="animate-[tg-press_24s_infinite_cubic-bezier(0.2,0.8,0.2,1)_3.6s]"
+
+The four keyframes:
+- `tg-reveal` — sequential element appearance (use 1.2s stagger between siblings)
+- `tg-blink` — terminal cursor on live request lines
+- `tg-pulse` — status indicator on "evaluating" or "live" badges
+- `tg-press` — Approve button press, synced to the demo cycle
