@@ -7,8 +7,8 @@ import {
 import type { CheckResponse, TollgateOptions } from "./types.js";
 
 const DEFAULT_BASE_URL = "http://localhost:8000";
-const DEFAULT_POLL_INTERVAL_MS = 500;
-const DEFAULT_POLL_TIMEOUT_MS = 30_000;
+const DEFAULT_POLL_INTERVAL_MS = 2000;
+const DEFAULT_POLL_TIMEOUT_MS = 300_000;
 const RETRY_DELAYS_MS = [500, 1000, 2000] as const;
 
 function sleep(ms: number): Promise<void> {
@@ -186,7 +186,11 @@ export class Tollgate {
     idempotencyKey?: string,
   ): (...args: TArgs) => Promise<TReturn> {
     return async (...args: TArgs): Promise<TReturn> => {
-      const payload = payloadMapper ? payloadMapper(...args) : {};
+      const payload = payloadMapper
+        ? payloadMapper(...args)
+        : (args.length === 1 && typeof args[0] === "object" && args[0] !== null
+            ? (args[0] as Record<string, unknown>)
+            : {});
       await this.checkAction(actionName, payload, idempotencyKey);
       return fn(...args);
     };
