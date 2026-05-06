@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "tollgate docs",
-  description: "Documentation for the tollgate policy and approval layer.",
+  title: "Tollgate Docs — Policy & approval layer for AI agents",
+  description: "Documentation for Tollgate — define policies, require approvals, and audit every agent action.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
