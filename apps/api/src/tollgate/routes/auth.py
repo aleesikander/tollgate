@@ -74,22 +74,42 @@ class ResetPasswordRequest(BaseModel):
 
 @router.post("/forgot-password", response_model=ForgotPasswordResponse)
 async def forgot_password(request: ForgotPasswordRequest, session: DBSession) -> ForgotPasswordResponse:
-    """Generate a password reset token. In production, email the reset link."""
-    from sqlalchemy import select as sa_select
+    """Send a password reset email via Resend."""
+    from tollgate.config import get_settings
     from tollgate.logging import get_logger
     _logger = get_logger(__name__)
 
-    user_result = await session.execute(sa_select(User).where(User.email == request.email))
+    user_result = await session.execute(select(User).where(User.email == request.email))
     user = user_result.scalar_one_or_none()
 
     if user:
+        settings = get_settings()
         auth_service = AuthService(session)
         token = auth_service.create_reset_token(user)
-        # In production: send email with reset link
-        # For now: log so it's accessible in dev
-        _logger.info("password_reset_requested", user_id=str(user.id), reset_token=token)
+        reset_url = f"{settings.dashboard_url}/reset-password?token={token}"
 
-    # Always return the same message to prevent email enumeration
+        if settings.resend_api_key:
+            try:
+                import resend
+                resend.api_key = settings.resend_api_key
+                resend.Emails.send({
+                    "from": settings.resend_from_email,
+                    "to": [user.email],
+                    "subject": "Reset your Tollgate password",
+                    "html": (
+                        f"<p>Hi,</p>"
+                        f"<p>Click the link below to reset your password. "
+                        f"This link expires in 1 hour.</p>"
+                        f'<p><a href="{reset_url}">Reset password</a></p>'
+                        f"<p>If you didn't request this, you can ignore this email.</p>"
+                        f"<p>— The Tollgate team</p>"
+                    ),
+                })
+            except Exception as e:
+                _logger.error("password_reset_email_failed", error=str(e), user_id=str(user.id))
+        else:
+            _logger.info("password_reset_requested", user_id=str(user.id), reset_token=token)
+
     return ForgotPasswordResponse(message="If that email is registered, a reset link has been sent.")
 
 

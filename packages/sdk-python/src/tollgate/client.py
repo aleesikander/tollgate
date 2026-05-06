@@ -51,7 +51,7 @@ class Tollgate:
     def __init__(
         self,
         api_key: str,
-        base_url: str = "http://localhost:8000",
+        base_url: str = "https://api.usetollgate.com",
         poll_interval: float = 2.0,
         max_wait: float = 300.0,
         on_pending: Callable[[str], None] | None = None,
@@ -195,7 +195,7 @@ class AsyncTollgate:
     def __init__(
         self,
         api_key: str,
-        base_url: str = "http://localhost:8000",
+        base_url: str = "https://api.usetollgate.com",
         poll_interval: float = 2.0,
         max_wait: float = 300.0,
         on_pending: Callable[[str], None] | None = None,

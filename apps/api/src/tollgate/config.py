@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     # No default - must be provided
     public_base_url: str
 
+    # Resend email
+    resend_api_key: str = ""
+    resend_from_email: str = "Tollgate <noreply@usetollgate.com>"
+
 
 @lru_cache
 def get_settings() -> Settings:
