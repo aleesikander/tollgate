@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" rx="22" fill="#111111"/>
+  <!-- Left pillar -->
+  <path d="M10 15 L38 15 L32 85 L10 85 Z" fill="#F4533C"/>
+  <!-- Right pillar -->
+  <path d="M62 15 L90 15 L90 85 L68 85 Z" fill="#F4533C"/>
+  <!-- Barrier bar -->
+  <rect x="28" y="43" width="44" height="14" rx="2" fill="#F4533C"/>
+  <!-- Diagonal stripes on barrier -->
+  <line x1="30" y1="43" x2="22" y2="57" stroke="#111" stroke-width="3"/>
+  <line x1="38" y1="43" x2="30" y2="57" stroke="#111" stroke-width="3"/>
+  <line x1="46" y1="43" x2="38" y2="57" stroke="#111" stroke-width="3"/>
+  <line x1="54" y1="43" x2="46" y2="57" stroke="#111" stroke-width="3"/>
+  <line x1="62" y1="43" x2="54" y2="57" stroke="#111" stroke-width="3"/>
+  <line x1="70" y1="43" x2="62" y2="57" stroke="#111" stroke-width="3"/>
+</svg>
