@@ -9,7 +9,7 @@ import {
   Settings,
   LogOut,
 } from "lucide-react";
-import { Logo } from "@tollgate/ui";
+import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";

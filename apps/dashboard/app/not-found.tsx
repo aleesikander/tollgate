@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Logo } from "@tollgate/ui";
+import { Logo } from "@/components/Logo";
 import { ArrowLeft } from "lucide-react";
 
 export default function NotFound() {

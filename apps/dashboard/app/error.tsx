@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { Logo } from "@tollgate/ui";
+import { Logo } from "@/components/Logo";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 
 export default function Error({

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Logo } from "@tollgate/ui";
+import { Logo } from "@/components/Logo";
 import { forgotPassword } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
