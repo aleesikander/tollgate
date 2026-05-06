@@ -154,8 +154,14 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [orgName, setOrgName] = useState("");
   const [loading, setLoading] = useState(false);
-  const { setToken } = useAuth();
+  const { setToken, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [isAuthenticated, isLoading, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
