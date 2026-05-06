@@ -1,0 +1,151 @@
+---
+title: Python SDK
+description: Install and use the Tollgate Python SDK.
+---
+
+## Installation
+
+```bash
+pip install tollgate-sdk
+```
+
+Requires Python 3.10+.
+
+## Basic usage
+
+```python
+import os
+from tollgate import Tollgate, ActionDenied, ActionPending
+
+tg = Tollgate(
+    api_key=os.environ["TOLLGATE_API_KEY"],
+    base_url="https://api.tollgate.dev",
+)
+
+@tg.guard("issue_refund")
+def issue_refund(amount: float, customer_id: str) -> dict:
+    # Only reached if Tollgate returns "allowed"
+    return process_refund(customer_id, amount)
+
+try:
+    result = issue_refund(amount=75.00, customer_id="cus_123")
+except ActionDenied as e:
+    print(f"Action blocked: {e.reason}")
+except ActionPending as e:
+    print(f"Timed out waiting for approval (action_id={e.action_id})")
+```
+
+## The `@tg.guard` decorator
+
+`@tg.guard(action_name)` wraps a function so that Tollgate checks the policy before executing it.
+
+**Payload extraction:** By default, the decorator sends all keyword arguments as the payload. You can override this with a custom mapper:
+
+```python
+@tg.guard("issue_refund", payload=lambda amount, customer_id, **_: {"amount": amount})
+def issue_refund(amount: float, customer_id: str, internal_ref: str) -> dict:
+    ...
+```
+
+**Async support:** Works identically on `async def` functions:
+
+```python
+@tg.guard("send_email")
+async def send_email(to: str, subject: str, body: str) -> None:
+    await mailer.send(to, subject, body)
+```
+
+## Context manager
+
+For cases where you need finer control — or want to protect code that isn't a single function:
+
+```python
+with tg.check("issue_refund", {"amount": 75.00, "customer_id": "cus_123"}):
+    # Only runs if allowed
+    process_refund("cus_123", 75.00)
+```
+
+## Async context manager
+
+```python
+async with tg.acheck("issue_refund", {"amount": 75.00}):
+    await process_refund_async("cus_123", 75.00)
+```
+
+## Low-level check
+
+If you need the raw decision (without automatic blocking):
+
+```python
+from tollgate import Decision
+
+result = tg.check_action("issue_refund", {"amount": 75.00})
+# result.decision: Decision.ALLOWED | Decision.DENIED | Decision.PENDING
+# result.action_id: str
+# result.reason: str
+```
+
+## Error types
+
+| Exception | When raised | Key attributes |
+|---|---|---|
+| `ActionDenied` | Decision is `denied` | `.reason: str` |
+| `ActionPending` | Approval timed out | `.action_id: str`, `.timeout_seconds: float` |
+| `TollgateAuthError` | Invalid API key | `.message: str` |
+| `TollgateConnectionError` | Network error | `.message: str` |
+
+## Configuration options
+
+```python
+tg = Tollgate(
+    api_key="tg_live_...",
+    base_url="https://api.tollgate.dev",   # default: http://localhost:8000
+    fail_open=False,       # if True, allow action when Tollgate is unreachable
+    poll_interval=3.0,     # seconds between status polls (default: 3.0)
+    max_wait=300.0,        # seconds before ActionPending is raised (default: 300)
+    on_pending=lambda action_id: print(f"Waiting for approval: {action_id}"),
+)
+```
+
+### `fail_open`
+
+When `fail_open=True`, if Tollgate is unreachable (network error, timeout), the action is **allowed** rather than raising an exception. Use this for non-critical operations where availability matters more than strict enforcement.
+
+Default: `False` (fail closed — reject on connectivity issues).
+
+## Full example
+
+```python
+"""
+Support agent with Tollgate-protected tools.
+"""
+import os
+import anthropic
+from tollgate import Tollgate, ActionDenied, ActionPending
+
+tg = Tollgate(
+    api_key=os.environ["TOLLGATE_API_KEY"],
+    base_url=os.environ.get("TOLLGATE_BASE_URL", "https://api.tollgate.dev"),
+    on_pending=lambda action_id: print(f"⏳ Waiting for Slack approval... ({action_id})"),
+)
+
+@tg.guard("issue_refund")
+def issue_refund(amount: float, customer_id: str, reason: str = "") -> dict:
+    return {"status": "refunded", "amount": amount}
+
+@tg.guard("delete_account")
+def delete_account(customer_id: str) -> dict:
+    return {"status": "deleted", "customer_id": customer_id}
+
+def run_tool(name: str, inputs: dict) -> str:
+    try:
+        if name == "issue_refund":
+            return str(issue_refund(**inputs))
+        elif name == "delete_account":
+            return str(delete_account(**inputs))
+    except ActionDenied as e:
+        return f"[Blocked by policy] {e.reason}"
+    except ActionPending as e:
+        return f"[Approval timed out] action_id={e.action_id}"
+    return f"Unknown tool: {name}"
+```

@@ -11,6 +11,7 @@ import {
   Trash2,
   MoreHorizontal,
   CheckCircle,
+  Key,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
@@ -87,72 +88,97 @@ export default function AgentsPage() {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="flex-1"
+      className="flex-1 relative"
     >
+      {/* Ambient glow */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: "radial-gradient(ellipse 70% 30% at 50% 0%, rgba(244,83,60,0.035) 0%, transparent 65%)",
+        }}
+      />
+
       {/* Header */}
-      <div className="h-16 flex items-center justify-between px-8 border-b border-[#1e1e2e]">
-        <h1 className="text-lg font-semibold text-[#f8fafc]">Agents</h1>
+      <div className="h-16 flex items-center justify-between px-8 border-b border-border relative">
+        <div>
+          <h1 className="text-base font-semibold text-foreground leading-none">Agents</h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            {agents.length > 0
+              ? `${agents.length} registered agent${agents.length !== 1 ? "s" : ""}`
+              : "Manage your registered AI agents"}
+          </p>
+        </div>
         <button
           onClick={() => setSheetOpen(true)}
-          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-gradient-to-b from-violet-500 to-violet-600 text-white font-medium text-sm hover:-translate-y-px transition-transform duration-150"
+          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:-translate-y-px transition-transform duration-150"
         >
           <Plus className="w-4 h-4" />
           New Agent
         </button>
       </div>
 
-      <div className="p-8">
+      <div className="relative p-8">
         {isLoading ? (
-          <div className="grid grid-cols-3 gap-5">
+          <div className="grid grid-cols-3 gap-4">
             {[0, 1, 2].map((i) => (
-              <Skeleton key={i} className="h-44 rounded-xl bg-[#1e1e2e]" />
+              <Skeleton key={i} className="h-44 rounded-xl bg-card" />
             ))}
           </div>
         ) : agents.length === 0 ? (
+          /* Empty state */
           <div className="flex flex-col items-center justify-center py-32 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-[#111118] border border-[#1e1e2e] flex items-center justify-center mb-4">
-              <Bot className="w-7 h-7 text-[#94a3b8]/60" />
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5 relative"
+              style={{ background: "rgba(244,83,60,0.07)", border: "1px solid rgba(244,83,60,0.18)" }}
+            >
+              <Bot className="w-7 h-7" style={{ color: "rgba(244,83,60,0.7)" }} />
+              {/* Pulse rings */}
+              <div
+                className="absolute inset-0 rounded-2xl"
+                style={{ border: "1px solid rgba(244,83,60,0.3)", animation: "ag-ring 2.5s ease-in-out infinite" }}
+              />
+              <style>{`
+                @keyframes ag-ring { 0%{transform:scale(1);opacity:0.6;} 70%{transform:scale(1.35);opacity:0;} 100%{transform:scale(1.35);opacity:0;} }
+              `}</style>
             </div>
-            <h2 className="text-base font-semibold text-[#f8fafc] mb-1">
-              No agents yet
-            </h2>
-            <p className="text-sm text-[#94a3b8] mb-6 max-w-xs">
-              Create your first agent to start enforcing policies on your AI
-              workflows.
+            <h2 className="text-base font-semibold text-foreground mb-1.5">No agents yet</h2>
+            <p className="text-sm text-muted-foreground mb-7 max-w-xs leading-relaxed">
+              Create your first agent to start enforcing policies on your AI workflows.
             </p>
             <button
               onClick={() => setSheetOpen(true)}
-              className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-gradient-to-b from-violet-500 to-violet-600 text-white font-medium text-sm hover:-translate-y-px transition-transform duration-150"
+              className="inline-flex items-center gap-2 h-9 px-5 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:-translate-y-px transition-transform duration-150"
             >
               <Plus className="w-4 h-4" />
               Create your first agent
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-5">
+          <div className="grid grid-cols-3 gap-4">
             {agents.map((agent: Agent) => (
               <div
                 key={agent.id}
-                className="bg-[#111118] border border-[#1e1e2e] rounded-xl p-6 hover:border-[#2e2e3e] transition-colors duration-200 flex flex-col"
+                className="group rounded-xl p-6 flex flex-col transition-all duration-200 hover:border-white/20"
+                style={{ background: "#131313", border: "1px solid rgba(255,255,255,0.10)" }}
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="w-10 h-10 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center flex-shrink-0">
-                    <Bot className="w-5 h-5 text-violet-400" />
+                <div className="flex items-start justify-between mb-5">
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{ background: "rgba(244,83,60,0.08)", border: "1px solid rgba(244,83,60,0.18)" }}
+                  >
+                    <Bot className="w-5 h-5" style={{ color: "#F4533C" }} />
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger
-                      className="w-8 h-8 flex items-center justify-center rounded-lg text-[#94a3b8] hover:text-[#f8fafc] hover:bg-white/[0.05] transition-colors"
+                      className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/[0.05] transition-colors opacity-0 group-hover:opacity-100"
                       render={<button />}
                     >
                       <MoreHorizontal className="w-4 h-4" />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      align="end"
-                      className="bg-[#111118] border-[#2e2e3e] text-[#f8fafc]"
-                    >
+                    <DropdownMenuContent align="end" className="bg-card border-border text-foreground">
                       <DropdownMenuItem
                         onClick={() => setDeleteTarget(agent)}
-                        className="text-red-400 focus:text-red-400 focus:bg-red-500/10 cursor-pointer"
+                        className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
                         Delete agent
@@ -161,23 +187,16 @@ export default function AgentsPage() {
                   </DropdownMenu>
                 </div>
 
-                <h3 className="font-semibold text-[#f8fafc] mb-1">
-                  {agent.name}
-                </h3>
-                <p className="text-xs font-mono text-[#94a3b8] mb-1 truncate">
-                  {agent.id}
-                </p>
-                <p className="text-xs text-[#94a3b8] mb-4">
-                  Created{" "}
-                  {formatDistanceToNow(new Date(agent.created_at), {
-                    addSuffix: true,
-                  })}
+                <h3 className="font-semibold text-foreground mb-1 truncate">{agent.name}</h3>
+                <p className="text-xs font-mono text-muted-foreground/50 mb-1 truncate">{agent.id}</p>
+                <p className="text-xs text-muted-foreground mb-5">
+                  Created {formatDistanceToNow(new Date(agent.created_at), { addSuffix: true })}
                 </p>
 
-                <div className="mt-auto">
+                <div className="mt-auto pt-4" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
                   <Link
                     href={`/agents/${agent.id}/policy`}
-                    className="inline-flex items-center gap-2 text-xs font-medium text-violet-400 hover:text-violet-300 transition-colors"
+                    className="inline-flex items-center gap-2 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
                   >
                     <FileText className="w-3.5 h-3.5" />
                     Edit Policy
@@ -191,16 +210,16 @@ export default function AgentsPage() {
 
       {/* New agent slide-over */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent
-          side="right"
-          className="bg-[#111118] border-[#1e1e2e] text-[#f8fafc] w-[420px]"
-        >
+        <SheetContent side="right" className="bg-card border-border text-foreground w-[420px]">
           <SheetHeader>
-            <SheetTitle className="text-[#f8fafc]">New Agent</SheetTitle>
+            <SheetTitle className="text-foreground">New Agent</SheetTitle>
           </SheetHeader>
-          <div className="mt-6 space-y-4">
+          <div className="mt-6 space-y-5">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Give your agent a name. An API key will be generated for you to use with the Tollgate SDK.
+            </p>
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium uppercase tracking-wide text-[#94a3b8]">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Agent name
               </Label>
               <Input
@@ -212,13 +231,13 @@ export default function AgentsPage() {
                     createMutation.mutate(newName.trim());
                   }
                 }}
-                className="bg-[#0a0a0f] border-[#1e1e2e] text-[#f8fafc] placeholder:text-[#94a3b8]/50 h-10"
+                className="h-10"
               />
             </div>
             <button
               onClick={() => createMutation.mutate(newName.trim())}
               disabled={!newName.trim() || createMutation.isPending}
-              className="w-full h-10 rounded-lg bg-gradient-to-b from-violet-500 to-violet-600 text-white font-medium text-sm hover:-translate-y-px transition-transform duration-150 disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0 flex items-center justify-center gap-2"
+              className="w-full h-10 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:-translate-y-px transition-transform duration-150 disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0 flex items-center justify-center gap-2"
             >
               {createMutation.isPending ? (
                 <>
@@ -235,35 +254,46 @@ export default function AgentsPage() {
 
       {/* API key reveal dialog */}
       <Dialog open={!!newKey} onOpenChange={(open) => !open && setNewKey(null)}>
-        <DialogContent className="bg-[#111118] border-[#1e1e2e] text-[#f8fafc] max-w-md">
+        <DialogContent className="bg-card border-border text-foreground max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-[#f8fafc]">
-              Agent created — save your API key
+            <DialogTitle className="text-foreground flex items-center gap-2.5">
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(244,83,60,0.1)", border: "1px solid rgba(244,83,60,0.2)" }}
+              >
+                <Key className="w-3.5 h-3.5" style={{ color: "#F4533C" }} />
+              </div>
+              Save your API key
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-2">
-            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3 text-sm text-amber-400">
-              This key will not be shown again. Copy it now and store it
-              securely.
+            <div
+              className="rounded-lg px-4 py-3 text-sm"
+              style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.2)", color: "rgba(245,158,11,0.9)" }}
+            >
+              This key will not be shown again. Copy it now and store it securely.
             </div>
-            <div className="bg-[#0a0a0f] border border-[#1e1e2e] rounded-lg px-4 py-3 flex items-center gap-3">
-              <code className="text-sm text-[#f8fafc] font-mono flex-1 break-all">
+            <div
+              className="rounded-lg px-4 py-3 flex items-center gap-3"
+              style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.1)" }}
+            >
+              <code className="text-sm text-foreground font-mono flex-1 break-all">
                 {newKey?.api_key}
               </code>
               <button
                 onClick={() => newKey && copyKey(newKey.api_key)}
-                className="flex-shrink-0 w-8 h-8 rounded-lg bg-[#1e1e2e] hover:bg-[#2e2e3e] flex items-center justify-center transition-colors"
+                className="flex-shrink-0 w-8 h-8 rounded-lg bg-secondary hover:bg-secondary/80 flex items-center justify-center transition-colors"
               >
                 {copied ? (
                   <CheckCircle className="w-4 h-4 text-green-400" />
                 ) : (
-                  <Copy className="w-4 h-4 text-[#94a3b8]" />
+                  <Copy className="w-4 h-4 text-muted-foreground" />
                 )}
               </button>
             </div>
             <button
               onClick={() => setNewKey(null)}
-              className="w-full h-10 rounded-lg bg-[#1e1e2e] hover:bg-[#2e2e3e] text-[#f8fafc] font-medium text-sm transition-colors"
+              className="w-full h-10 rounded-lg bg-secondary hover:bg-secondary/80 text-foreground font-medium text-sm transition-colors"
             >
               I&apos;ve saved my key
             </button>
@@ -272,34 +302,28 @@ export default function AgentsPage() {
       </Dialog>
 
       {/* Delete confirm dialog */}
-      <Dialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-      >
-        <DialogContent className="bg-[#111118] border-[#1e1e2e] text-[#f8fafc] max-w-md">
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="bg-card border-border text-foreground max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-[#f8fafc]">Delete agent?</DialogTitle>
+            <DialogTitle className="text-foreground">Delete agent?</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-[#94a3b8] mt-2">
+          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
             This will permanently delete{" "}
-            <span className="text-[#f8fafc] font-medium">
-              {deleteTarget?.name}
-            </span>{" "}
+            <span className="text-foreground font-medium">{deleteTarget?.name}</span>{" "}
             and all its data. This action cannot be undone.
           </p>
-          <div className="flex gap-3 mt-4">
+          <div className="flex gap-3 mt-5">
             <button
               onClick={() => setDeleteTarget(null)}
-              className="flex-1 h-10 rounded-lg bg-[#1e1e2e] hover:bg-[#2e2e3e] text-[#f8fafc] font-medium text-sm transition-colors"
+              className="flex-1 h-10 rounded-lg bg-secondary hover:bg-secondary/80 text-foreground font-medium text-sm transition-colors"
             >
               Cancel
             </button>
             <button
-              onClick={() =>
-                deleteTarget && deleteMutation.mutate(deleteTarget.id)
-              }
+              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
               disabled={deleteMutation.isPending}
-              className="flex-1 h-10 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 font-medium text-sm transition-colors disabled:opacity-50"
+              className="flex-1 h-10 rounded-lg font-medium text-sm transition-colors disabled:opacity-50"
+              style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.22)", color: "#ef4444" }}
             >
               {deleteMutation.isPending ? "Deleting…" : "Delete agent"}
             </button>

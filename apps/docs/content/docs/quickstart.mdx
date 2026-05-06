@@ -1,0 +1,135 @@
+---
+title: Quickstart
+description: Protect your first AI agent tool in under 5 minutes.
+---
+
+<QuickstartStepper />
+
+## Prerequisites
+
+- A Tollgate account ([sign up here](https://app.tollgate.dev/signup))
+- Python 3.10+ or Node.js 18+
+- An AI agent that calls tools (Claude, OpenAI, LangChain, etc.)
+
+## Step 1: Create an agent
+
+1. Open the [Tollgate dashboard](https://app.tollgate.dev)
+2. Go to **Agents** → **New Agent**
+3. Give it a name (e.g. `support-bot`)
+4. Copy the API key — **it won't be shown again**
+
+## Step 2: Write a policy
+
+Go to your agent → **Edit Policy**. Replace the default YAML with something appropriate for your use case:
+
+```yaml
+version: 1
+rules:
+  # Small refunds are fine
+  - action: issue_refund
+    when:
+      amount: { lte: 50 }
+    decide: allow
+
+  # Large refunds need a human
+  - action: issue_refund
+    when:
+      amount: { gt: 50 }
+    decide: require_approval
+    approvers: ["#approvals"]
+
+  # Account deletion is never allowed via agent
+  - action: delete_account
+    decide: deny
+    reason: "Account deletion must be done manually"
+
+default: allow
+```
+
+Click **Save Policy**.
+
+## Step 3: Install the SDK
+
+<Tabs items={["Python", "TypeScript"]}>
+  <Tab value="Python">
+    ```bash
+    pip install tollgate-sdk
+    ```
+  </Tab>
+  <Tab value="TypeScript">
+    ```bash
+    npm install @tollgate/sdk
+    ```
+  </Tab>
+</Tabs>
+
+## Step 4: Protect your tools
+
+<Tabs items={["Python", "TypeScript"]}>
+  <Tab value="Python">
+    ```python
+    import os
+    from tollgate import Tollgate, ActionDenied, ActionPending
+
+    tg = Tollgate(
+        api_key=os.environ["TOLLGATE_API_KEY"],
+        base_url="https://api.tollgate.dev",
+    )
+
+    @tg.guard("issue_refund")
+    def issue_refund(amount: float, customer_id: str) -> dict:
+        # This only runs if Tollgate says "allowed"
+        stripe.refund(customer_id, amount)
+        return {"status": "refunded", "amount": amount}
+
+    # In your agent tool dispatch:
+    try:
+        result = issue_refund(amount=75.00, customer_id="cus_123")
+    except ActionDenied as e:
+        print(f"Blocked: {e.reason}")
+    except ActionPending as e:
+        print(f"Timed out waiting for approval: {e.action_id}")
+    ```
+  </Tab>
+  <Tab value="TypeScript">
+    ```typescript
+    import { Tollgate, ActionDenied, ActionPending } from "@tollgate/sdk";
+
+    const tg = new Tollgate({
+      apiKey: process.env.TOLLGATE_API_KEY!,
+      baseUrl: "https://api.tollgate.dev",
+    });
+
+    async function issueRefund(amount: number, customerId: string) {
+      return tg.guard("issue_refund", { amount, customerId }, async () => {
+        // This only runs if Tollgate says "allowed"
+        await stripe.refund(customerId, amount);
+        return { status: "refunded", amount };
+      });
+    }
+
+    // In your agent tool dispatch:
+    try {
+      const result = await issueRefund(75.00, "cus_123");
+    } catch (e) {
+      if (e instanceof ActionDenied) console.log(`Blocked: ${e.reason}`);
+      if (e instanceof ActionPending) console.log(`Timed out: ${e.actionId}`);
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Step 5: Watch it in the dashboard
+
+Go to **Audit Log** in the dashboard. Every call to `tg.guard()` creates a record — you'll see the action name, payload, decision, and timestamp.
+
+If an action hits `require_approval`, it appears in the **Pending Approvals** panel on the dashboard homepage (and in Slack if you've [set that up](/docs/integrations/slack)).
+
+## That's it
+
+Your agent can now run in write mode with full auditability and human-in-the-loop for sensitive operations.
+
+**Next steps:**
+- [Policy DSL reference](/docs/policy-dsl) — learn all the condition operators
+- [Slack integration](/docs/integrations/slack) — get approval requests in Slack
+- [API reference](/docs/api-reference) — integrate directly without an SDK

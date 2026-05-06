@@ -121,3 +121,8 @@
   65%       { transform: scale(0.94); background: #2a8c4d; }
   70%, 100% { transform: scale(1);    background: #1f7a3f; }
 }
+
+@keyframes tg-fadein-up {
+  from { opacity: 0; transform: translateY(7px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

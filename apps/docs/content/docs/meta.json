@@ -1,0 +1,4 @@
+{
+  "title": "Tollgate",
+  "pages": ["index", "quickstart", "policy-dsl", "api-reference", "sdks", "integrations"]
+}

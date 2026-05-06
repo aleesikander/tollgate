@@ -1,0 +1,184 @@
+---
+title: TypeScript SDK
+description: Install and use the Tollgate TypeScript/Node.js SDK.
+---
+
+## Installation
+
+```bash
+npm install @tollgate/sdk
+# or
+pnpm add @tollgate/sdk
+```
+
+Requires Node.js 18+ (uses native `fetch` and `crypto.randomUUID`).
+
+## Basic usage
+
+```typescript
+import { Tollgate, ActionDenied, ActionPending } from "@tollgate/sdk";
+
+const tg = new Tollgate({
+  apiKey: process.env.TOLLGATE_API_KEY!,
+  baseUrl: "https://api.tollgate.dev",
+});
+
+async function issueRefund(amount: number, customerId: string) {
+  return tg.guard("issue_refund", { amount, customerId }, async () => {
+    // Only runs if Tollgate returns "allowed"
+    return await processRefund(customerId, amount);
+  });
+}
+
+try {
+  const result = await issueRefund(75.00, "cus_123");
+} catch (e) {
+  if (e instanceof ActionDenied) {
+    console.log(`Blocked: ${e.reason}`);
+  }
+  if (e instanceof ActionPending) {
+    console.log(`Timed out: ${e.actionId}`);
+  }
+}
+```
+
+## `tg.guard()`
+
+```typescript
+tg.guard(actionName, payload, fn)
+```
+
+| Argument | Type | Description |
+|---|---|---|
+| `actionName` | `string` | Matched against policy rules |
+| `payload` | `Record<string, unknown>` | Data evaluated by `when` conditions |
+| `fn` | `() => Promise<T>` | Executed only if the decision is `allowed` |
+
+Returns the return value of `fn` if allowed. Throws `ActionDenied` or `ActionPending` otherwise.
+
+## Low-level check
+
+If you need the raw decision without wrapping a function:
+
+```typescript
+import type { CheckResponse } from "@tollgate/sdk";
+
+const result: CheckResponse = await tg.checkAction(
+  "issue_refund",
+  { amount: 75.00, customerId: "cus_123" },
+);
+// result.decision: "allowed" | "denied" | "pending"
+// result.actionId: string
+// result.reason: string
+```
+
+If `decision` is `"pending"`, the SDK automatically polls `/v1/check/{actionId}` until the decision resolves or `pollTimeoutMs` is reached.
+
+## Error types
+
+| Error class | When thrown | Key properties |
+|---|---|---|
+| `ActionDenied` | Decision is `denied` | `.reason: string` |
+| `ActionPending` | Approval timed out | `.actionId: string` |
+| `TollgateAuthError` | 401 from API | `.message: string` |
+| `TollgateConnectionError` | Network failure | `.message: string` |
+
+## Configuration options
+
+```typescript
+const tg = new Tollgate({
+  apiKey: "tg_live_...",
+  baseUrl: "https://api.tollgate.dev", // default: http://localhost:8000
+  failOpen: false,           // allow on connectivity error (default: false)
+  pollIntervalMs: 2000,      // ms between status polls (default: 2000)
+  pollTimeoutMs: 300_000,    // ms before ActionPending is thrown (default: 300000)
+});
+```
+
+### `failOpen`
+
+When `true`, if Tollgate is unreachable, `guard()` executes `fn` anyway instead of throwing. Useful for non-critical paths where availability > strict enforcement.
+
+## Full example with Claude tool use
+
+```typescript
+import Anthropic from "@anthropic-ai/sdk";
+import { Tollgate, ActionDenied, ActionPending } from "@tollgate/sdk";
+
+const tg = new Tollgate({
+  apiKey: process.env.TOLLGATE_API_KEY!,
+  baseUrl: process.env.TOLLGATE_BASE_URL ?? "https://api.tollgate.dev",
+});
+
+const client = new Anthropic();
+
+const TOOLS: Anthropic.Tool[] = [
+  {
+    name: "issue_refund",
+    description: "Issue a refund to a customer",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        amount: { type: "number" },
+        customerId: { type: "string" },
+      },
+      required: ["amount", "customerId"],
+    },
+  },
+];
+
+async function runTool(name: string, input: Record<string, unknown>): Promise<string> {
+  try {
+    if (name === "issue_refund") {
+      const result = await tg.guard("issue_refund", input, async () => {
+        return { status: "refunded", amount: input.amount };
+      });
+      return JSON.stringify(result);
+    }
+    return `Unknown tool: ${name}`;
+  } catch (e) {
+    if (e instanceof ActionDenied) return `[Blocked] ${e.reason}`;
+    if (e instanceof ActionPending) return `[Timed out] ${e.actionId}`;
+    throw e;
+  }
+}
+
+async function agentLoop(userMessage: string) {
+  const messages: Anthropic.MessageParam[] = [
+    { role: "user", content: userMessage },
+  ];
+
+  let response = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 1024,
+    tools: TOOLS,
+    messages,
+  });
+
+  while (response.stop_reason === "tool_use") {
+    const toolResults: Anthropic.ToolResultBlockParam[] = [];
+
+    for (const block of response.content) {
+      if (block.type === "tool_use") {
+        const result = await runTool(block.name, block.input as Record<string, unknown>);
+        toolResults.push({ type: "tool_result", tool_use_id: block.id, content: result });
+      }
+    }
+
+    messages.push({ role: "assistant", content: response.content });
+    messages.push({ role: "user", content: toolResults });
+
+    response = await client.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 1024,
+      tools: TOOLS,
+      messages,
+    });
+  }
+
+  return response.content
+    .filter((b) => b.type === "text")
+    .map((b) => (b as Anthropic.TextBlock).text)
+    .join("");
+}
+```

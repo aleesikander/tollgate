@@ -1,0 +1,230 @@
+---
+title: Policy DSL
+description: Reference for Tollgate's YAML policy language.
+---
+
+## Overview
+
+A policy is a YAML document that defines what your agent is allowed to do. Tollgate evaluates rules top-to-bottom and returns the first match. If no rule matches, the `default` decision applies.
+
+```yaml
+version: 1
+rules:
+  - action: <action_name>
+    when:           # optional — omit to match all payloads
+      <field>: <condition>
+    decide: <decision>
+    reason: <string>    # optional — shown to the agent on deny
+    approvers: [<channel>]  # required when decide: require_approval
+default: allow      # fallback when no rule matches
+```
+
+## Fields
+
+### `version`
+
+Always `1`. Required.
+
+### `rules`
+
+An ordered list of rule objects. Rules are evaluated top-to-bottom. The first matching rule wins.
+
+### `default`
+
+The fallback decision when no rule matches. One of `allow`, `deny`, or `require_approval`.
+
+Defaults to `allow` if omitted.
+
+---
+
+## Rule object
+
+### `action`
+
+The action name to match. Must exactly match the first argument passed to `tg.guard()` (Python) or `tg.guard(actionName, ...)` (TypeScript).
+
+```yaml
+action: issue_refund
+```
+
+Use `"*"` to match any action (useful for a catch-all rule at the end of the list):
+
+```yaml
+- action: "*"
+  decide: deny
+  reason: "Only explicitly listed actions are permitted"
+```
+
+### `when`
+
+Optional. A map of payload field names to conditions. If `when` is omitted, the rule matches all calls to that action.
+
+All conditions in `when` must be satisfied for the rule to match (logical AND).
+
+```yaml
+when:
+  amount: { lte: 100 }
+  currency: { eq: "USD" }
+```
+
+### `decide`
+
+The decision to return when this rule matches. One of:
+
+| Value | Behaviour |
+|---|---|
+| `allow` | Action proceeds immediately |
+| `deny` | Action blocked. SDK raises `ActionDenied` |
+| `require_approval` | Action held for human review |
+
+### `reason`
+
+Optional string. Returned to the agent when the decision is `deny`. Useful for giving the agent context so it can explain the situation to the user.
+
+```yaml
+decide: deny
+reason: "Refunds over $500 must be processed manually"
+```
+
+### `approvers`
+
+Required when `decide: require_approval`. A list of Slack channel names (prefixed with `#`) that should receive the approval request.
+
+```yaml
+decide: require_approval
+approvers: ["#billing-approvals", "#engineering-oncall"]
+```
+
+---
+
+## Condition operators
+
+Conditions match against the action's payload. The payload is the dict/object passed as the second argument to `tg.guard()`.
+
+### Numeric operators
+
+```yaml
+when:
+  amount: { lte: 100 }   # ≤ 100
+  amount: { lt: 100 }    # < 100
+  amount: { gte: 50 }    # ≥ 50
+  amount: { gt: 50 }     # > 50
+  amount: { eq: 100 }    # == 100
+```
+
+### String operators
+
+```yaml
+when:
+  status: { eq: "active" }
+  email: { contains: "@acme.com" }
+```
+
+### List operator
+
+```yaml
+when:
+  plan: { in: ["pro", "enterprise"] }
+```
+
+---
+
+## Examples
+
+### Simple allow/deny
+
+```yaml
+version: 1
+rules:
+  - action: send_email
+    decide: allow
+  - action: delete_user
+    decide: deny
+    reason: "Deleting users is not permitted via agent"
+default: deny
+```
+
+### Tiered approval by amount
+
+```yaml
+version: 1
+rules:
+  - action: issue_refund
+    when:
+      amount: { lte: 25 }
+    decide: allow
+
+  - action: issue_refund
+    when:
+      amount: { lte: 250 }
+    decide: require_approval
+    approvers: ["#support-approvals"]
+
+  - action: issue_refund
+    when:
+      amount: { gt: 250 }
+    decide: deny
+    reason: "Refunds over $250 must be processed by finance"
+
+default: allow
+```
+
+### Restrict by plan
+
+```yaml
+version: 1
+rules:
+  - action: export_data
+    when:
+      customer_plan: { in: ["pro", "enterprise"] }
+    decide: allow
+
+  - action: export_data
+    decide: require_approval
+    approvers: ["#customer-success"]
+
+default: allow
+```
+
+### Lockdown mode
+
+When you want to audit everything and allow humans to decide:
+
+```yaml
+version: 1
+rules: []
+default: require_approval
+approvers: ["#all-agent-actions"]
+```
+
+---
+
+## Evaluation order
+
+Rules are evaluated **top-to-bottom**. The first rule whose `action` matches the requested action name **and** whose `when` conditions (if any) all match will be returned. Subsequent rules are not evaluated.
+
+<PolicyEvalFlow />
+
+This means more specific rules should come before more general ones.
+
+```yaml
+# Correct: specific rule first
+rules:
+  - action: issue_refund
+    when:
+      amount: { lte: 100 }
+    decide: allow
+  - action: issue_refund
+    decide: require_approval
+    approvers: ["#approvals"]
+
+# Wrong: the second rule would never be reached
+rules:
+  - action: issue_refund
+    decide: require_approval
+    approvers: ["#approvals"]
+  - action: issue_refund
+    when:
+      amount: { lte: 100 }
+    decide: allow
+```

@@ -1,0 +1,137 @@
+---
+title: Slack Integration
+description: Receive and respond to approval requests directly in Slack.
+---
+
+## Overview
+
+When a policy rule has `decide: require_approval`, Tollgate sends an interactive Slack message to the configured channel. Team members can approve or reject directly from Slack — no need to open the dashboard.
+
+The agent's SDK call blocks (polls) until the decision is made or the timeout is reached.
+
+## Prerequisites
+
+- A Slack workspace where you have permission to create apps
+- A running Tollgate API accessible from the internet (for Slack webhooks)
+
+## Setup
+
+### 1. Create a Slack App
+
+Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From scratch**.
+
+Give it a name (e.g. `Tollgate`) and select your workspace.
+
+### 2. Configure Bot Token Scopes
+
+In your app settings, go to **OAuth & Permissions** → **Bot Token Scopes** and add:
+
+| Scope | Purpose |
+|---|---|
+| `chat:write` | Post approval request messages |
+| `channels:read` | Verify the bot can see the channel |
+
+Click **Install to Workspace** and copy the **Bot User OAuth Token** (`xoxb-...`).
+
+### 3. Enable Interactivity
+
+In your app settings, go to **Interactivity & Shortcuts** and toggle it on.
+
+Set the **Request URL** to:
+
+```
+https://your-tollgate-domain.com/slack/interactive
+```
+
+This is the endpoint Tollgate listens on for button clicks (approve/reject).
+
+### 4. Set environment variables
+
+In your Tollgate API deployment:
+
+```bash
+SLACK_BOT_TOKEN=xoxb-your-bot-token
+SLACK_SIGNING_SECRET=your-signing-secret   # found in Basic Information
+ENCRYPTION_KEY=your-32-byte-fernet-key     # used to encrypt the token at rest
+```
+
+Generate a Fernet key:
+
+```python
+from cryptography.fernet import Fernet
+print(Fernet.generate_key().decode())
+```
+
+### 5. Invite the bot to your channel
+
+In Slack, invite the bot to the channels you're using for approvals:
+
+```
+/invite @tollgate
+```
+
+### 6. Update your policy
+
+Use the channel name in your policy's `approvers` field:
+
+```yaml
+version: 1
+rules:
+  - action: issue_refund
+    when:
+      amount: { gt: 100 }
+    decide: require_approval
+    approvers: ["#billing-approvals"]
+default: allow
+```
+
+## How it works
+
+<SlackApprovalFlow />
+
+## Local development
+
+Slack needs to reach your API over the internet. Use [ngrok](https://ngrok.com) to expose your local server:
+
+```bash
+ngrok http 8000
+```
+
+Copy the forwarding URL (e.g. `https://abc123.ngrok.io`) and set it as the Interactivity Request URL in your Slack app settings:
+
+```
+https://abc123.ngrok.io/slack/interactive
+```
+
+<Callout type="warn">
+The ngrok URL changes every time you restart it. Update the Slack app settings each time, or use a paid ngrok plan with a static domain.
+</Callout>
+
+## What the Slack message looks like
+
+When an approval request is triggered, Tollgate sends a structured message:
+
+```
+🔔 Approval required — support-bot
+
+Action:   issue_refund
+Payload:  {"amount": 250, "customer_id": "cus_123"}
+Reason:   Matches rule: amount > 100
+
+[✓ Approve]  [✗ Reject]
+```
+
+After a decision is made, the buttons are replaced with the outcome and the name of the person who decided.
+
+## Timeout behaviour
+
+If no decision is made within `max_wait` seconds (default: 300s), the SDK raises `ActionPending`. You can configure this:
+
+```python
+tg = Tollgate(
+    api_key="...",
+    max_wait=600.0,   # wait up to 10 minutes
+)
+```
+
+The action remains `pending` in Tollgate even after the SDK times out. A team member can still approve or reject it from the dashboard.

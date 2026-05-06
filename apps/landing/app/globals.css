@@ -1,2 +1,45 @@
 @import "tailwindcss";
 @import "@tollgate/ui/styles/tokens.css";
+
+/* Base: solid dark + fixed white bloom at the very top of the page */
+body {
+  background-color: #0a0a0a;
+  background-image: radial-gradient(
+    ellipse 85% 40% at 50% -4%,
+    rgba(255, 255, 255, 0.055) 0%,
+    transparent 60%
+  );
+}
+
+/*
+  Film grain overlay — fixed over the full viewport, above all content,
+  pointer-events: none so it never blocks interaction. At 3% opacity it
+  adds tactility to the surface without being visible as a distinct texture.
+*/
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+/* Ambient accent glow — hero section */
+.hero-glow {
+  position: relative;
+  overflow: hidden;
+}
+.hero-glow::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 65% 55% at 22% 55%,
+    rgba(244, 83, 60, 0.08) 0%,
+    transparent 68%
+  );
+  pointer-events: none;
+}

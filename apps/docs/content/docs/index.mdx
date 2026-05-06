@@ -1,6 +1,76 @@
 ---
-title: Welcome to tollgate
-description: Docs are coming soon.
+title: Introduction
+description: Tollgate is a policy and approval layer for AI agents. Ship agents in write mode — safely.
 ---
 
-Docs are coming soon.
+## What is Tollgate?
+
+AI agents can read data safely. The problem is **write actions** — issuing refunds, updating accounts, deleting records. Without guardrails, a hallucinating agent can cause real damage before anyone notices.
+
+Tollgate sits between your agent and your tools. Every time your agent wants to take an action, Tollgate evaluates it against a YAML policy you define. The decision is instant:
+
+- **allow** — action proceeds immediately
+- **deny** — action is blocked, agent gets a clear reason
+- **require_approval** — action is held, a Slack message goes to your team, and the agent waits for a human ✓ or ✗
+
+## How it works
+
+<HowItWorksFlow />
+
+Three steps to go from zero to protected:
+
+1. **Register an agent** in the dashboard and copy its API key
+2. **Write a policy** — a YAML file that describes what's allowed, what's denied, and what needs a human
+3. **Wrap your tools** with the SDK — one decorator in Python, one function call in TypeScript
+
+## Core concepts
+
+### Agents
+
+An agent is a registered identity in Tollgate. Each agent has:
+- A unique API key (used by the SDK to authenticate)
+- An active policy (the rules that govern its actions)
+- A full audit trail
+
+### Policies
+
+Policies are YAML documents stored in Tollgate. A policy contains a list of rules — each rule matches an action name, optionally filters on payload values, and returns a decision.
+
+```yaml
+version: 1
+rules:
+  - action: issue_refund
+    when:
+      amount: { lte: 100 }
+    decide: allow
+  - action: issue_refund
+    when:
+      amount: { gt: 100 }
+    decide: require_approval
+    approvers: ["#approvals"]
+  - action: delete_account
+    decide: deny
+    reason: "Not permitted via agent"
+default: allow
+```
+
+### Decisions
+
+| Decision | Meaning |
+|---|---|
+| `allowed` | Action proceeds |
+| `denied` | Action blocked. SDK raises `ActionDenied` |
+| `pending` | Waiting for human approval. SDK polls until resolved |
+
+### Audit log
+
+Every action — allowed, denied, or approved — is logged with the agent identity, action name, full payload, decision, timestamp, and who approved it (if applicable).
+
+## Next steps
+
+<Cards>
+  <Card title="Quickstart" href="/docs/quickstart" description="Get your first agent protected in 5 minutes" />
+  <Card title="Policy DSL" href="/docs/policy-dsl" description="Full reference for the policy rule syntax" />
+  <Card title="Python SDK" href="/docs/sdks/python" description="Protect Python tools with one decorator" />
+  <Card title="TypeScript SDK" href="/docs/sdks/typescript" description="Protect TypeScript tools with one function" />
+</Cards>

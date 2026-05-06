@@ -130,3 +130,47 @@ class AuthService:
         """Get a user by ID."""
         result = await self.session.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
+
+    def create_reset_token(self, user: User) -> str:
+        """Create a short-lived password reset token.
+
+        Uses the user's hashed_password as part of the signing secret so the
+        token is automatically invalidated once the password changes.
+        """
+        secret = self.settings.jwt_secret + user.hashed_password
+        expires = datetime.now(UTC) + timedelta(minutes=15)
+        payload: dict[str, Any] = {
+            "sub": str(user.id),
+            "type": "reset",
+            "exp": expires,
+        }
+        return jwt.encode(payload, secret, algorithm="HS256")
+
+    def verify_reset_token(self, token: str, user: User) -> bool:
+        """Verify a password reset token against a user."""
+        secret = self.settings.jwt_secret + user.hashed_password
+        try:
+            payload: dict[str, Any] = jwt.decode(token, secret, algorithms=["HS256"])
+            return payload.get("type") == "reset" and payload.get("sub") == str(user.id)
+        except jwt.InvalidTokenError:
+            return False
+
+    async def reset_password(self, token: str, new_password: str) -> None:
+        """Reset a user's password using a valid reset token."""
+        # Decode without verification to extract sub (user_id)
+        try:
+            unverified = jwt.decode(token, options={"verify_signature": False})
+            user_id = uuid.UUID(unverified["sub"])
+        except Exception:
+            raise AuthError("INVALID_TOKEN", "Invalid reset token")
+
+        user = await self.get_user_by_id(user_id)
+        if not user:
+            raise AuthError("INVALID_TOKEN", "Invalid reset token")
+
+        if not self.verify_reset_token(token, user):
+            raise AuthError("INVALID_TOKEN", "Reset token is invalid or has expired")
+
+        user.hashed_password = self._hash_password(new_password)
+        await self.session.flush()
+        logger.info("password_reset", user_id=str(user.id))

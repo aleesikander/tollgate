@@ -2,12 +2,15 @@
 
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle,
   Save,
   AlertCircle,
   ChevronLeft,
+  Bot,
+  FileText,
+  ArrowRight,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useParams, useRouter } from "next/navigation";
@@ -19,8 +22,8 @@ import { getActivePolicy, savePolicy, getAgents } from "@/lib/api";
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
   loading: () => (
-    <div className="flex-1 bg-[#0a0a0f] flex items-center justify-center">
-      <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+    <div className="flex-1 bg-background flex items-center justify-center">
+      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   ),
 });
@@ -74,11 +77,74 @@ function parsePolicy(src: string): { rules: ParsedRule[]; error?: string } {
   }
 }
 
-const decisionColors: Record<string, string> = {
-  allow: "text-green-400 bg-green-500/10 border-green-500/20",
-  deny: "text-red-400 bg-red-500/10 border-red-500/20",
-  require_approval: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+const DECISION_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  allow: {
+    label: "allow",
+    color: "#5BD982",
+    bg: "rgba(91,217,130,0.08)",
+    border: "rgba(91,217,130,0.22)",
+  },
+  deny: {
+    label: "deny",
+    color: "#ef4444",
+    bg: "rgba(239,68,68,0.08)",
+    border: "rgba(239,68,68,0.2)",
+  },
+  require_approval: {
+    label: "requires approval",
+    color: "#F4533C",
+    bg: "rgba(244,83,60,0.08)",
+    border: "rgba(244,83,60,0.22)",
+  },
 };
+
+function RuleCard({ rule, index }: { rule: ParsedRule; index: number }) {
+  const cfg = DECISION_CONFIG[rule.decision] ?? {
+    label: rule.decision,
+    color: "rgba(255,255,255,0.5)",
+    bg: "rgba(255,255,255,0.04)",
+    border: "rgba(255,255,255,0.1)",
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, delay: index * 0.06 }}
+      className="rounded-xl p-4"
+      style={{ background: "#131313", border: "1px solid rgba(255,255,255,0.08)" }}
+    >
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <code className="text-sm font-mono text-foreground">{rule.action}</code>
+        <span
+          className="flex-shrink-0 text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
+          style={{ color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}` }}
+        >
+          {cfg.label}
+        </span>
+      </div>
+
+      {rule.condition ? (
+        <div
+          className="text-xs font-mono text-muted-foreground rounded-md px-2.5 py-1.5 mb-2"
+          style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.06)" }}
+        >
+          <span className="text-muted-foreground/50">when </span>
+          {rule.condition}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground/40 mb-2 italic">always</p>
+      )}
+
+      {rule.approvers && (
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2">
+          <ArrowRight className="w-3 h-3 flex-shrink-0" />
+          {rule.approvers}
+        </div>
+      )}
+    </motion.div>
+  );
+}
 
 export default function PolicyPage() {
   const params = useParams<{ id: string }>();
@@ -127,149 +193,186 @@ export default function PolicyPage() {
     setEditorValue(value ?? "");
   }, []);
 
+  const isValid = !parseError && rules.length > 0;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="flex-1 flex flex-col"
+      className="flex-1 flex flex-col relative"
     >
+      {/* Ambient glow */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: "radial-gradient(ellipse 70% 25% at 50% 0%, rgba(244,83,60,0.03) 0%, transparent 60%)",
+        }}
+      />
+
       {/* Header */}
-      <div className="h-16 flex items-center gap-3 px-8 border-b border-[#1e1e2e] flex-shrink-0">
+      <div className="h-16 flex items-center gap-2.5 px-8 border-b border-border flex-shrink-0 relative">
         <button
           onClick={() => router.push("/agents")}
-          className="flex items-center gap-1.5 text-[#94a3b8] hover:text-[#f8fafc] transition-colors text-sm"
+          className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-sm"
         >
           <ChevronLeft className="w-4 h-4" />
           Agents
         </button>
-        <span className="text-[#1e1e2e]">/</span>
-        <h1 className="text-lg font-semibold text-[#f8fafc]">{agentName}</h1>
-        <span className="text-[#1e1e2e]">/</span>
-        <span className="text-sm text-[#94a3b8]">Policy</span>
+        <span className="text-muted-foreground/25">/</span>
+        <div className="flex items-center gap-2">
+          <div
+            className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0"
+            style={{ background: "rgba(244,83,60,0.1)", border: "1px solid rgba(244,83,60,0.2)" }}
+          >
+            <Bot className="w-3 h-3" style={{ color: "#F4533C" }} />
+          </div>
+          <span className="text-sm font-semibold text-foreground">{agentName}</span>
+        </div>
+        <span className="text-muted-foreground/25">/</span>
+        <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+          <FileText className="w-3.5 h-3.5" />
+          Policy
+        </span>
       </div>
 
-      {/* Two-panel editor */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Monaco editor */}
-        <div className="w-1/2 flex flex-col border-r border-[#1e1e2e]">
-          <div className="flex-1 flex flex-col">
-            {isLoading ? (
-              <div className="flex-1 bg-[#0a0a0f] flex items-center justify-center">
-                <div className="w-6 h-6 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+      {/* Two-panel layout */}
+      <div className="flex-1 flex overflow-hidden relative">
+
+        {/* Left: Monaco editor */}
+        <div className="w-1/2 flex flex-col border-r border-border">
+          {/* Editor label bar */}
+          <div
+            className="h-9 flex items-center justify-between px-5 border-b border-border flex-shrink-0"
+            style={{ background: "rgba(0,0,0,0.25)" }}
+          >
+            <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+              policy.yaml
+            </span>
+            <AnimatePresence mode="wait">
+              {parseError ? (
+                <motion.span
+                  key="error"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center gap-1.5 text-[10px] text-destructive"
+                >
+                  <AlertCircle className="w-3 h-3" />
+                  syntax error
+                </motion.span>
+              ) : isValid ? (
+                <motion.span
+                  key="valid"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center gap-1.5 text-[10px]"
+                  style={{ color: "#5BD982" }}
+                >
+                  <CheckCircle className="w-3 h-3" />
+                  valid · {rules.length} rule{rules.length !== 1 ? "s" : ""}
+                </motion.span>
+              ) : null}
+            </AnimatePresence>
+          </div>
+
+          {isLoading ? (
+            <div className="flex-1 bg-background flex items-center justify-center">
+              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <MonacoEditor
+              height="100%"
+              language="yaml"
+              theme="vs-dark"
+              value={currentYaml}
+              onChange={handleEditorChange}
+              options={{
+                minimap: { enabled: false },
+                fontSize: 13,
+                lineHeight: 22,
+                fontFamily: '"Geist Mono", "JetBrains Mono", monospace',
+                padding: { top: 20, bottom: 20 },
+                scrollBeyondLastLine: false,
+                wordWrap: "on",
+                tabSize: 2,
+                smoothScrolling: true,
+                cursorBlinking: "smooth",
+              }}
+            />
+          )}
+        </div>
+
+        {/* Right: live preview */}
+        <div className="w-1/2 flex flex-col overflow-hidden">
+          {/* Preview label bar */}
+          <div
+            className="h-9 flex items-center justify-between px-5 border-b border-border flex-shrink-0"
+            style={{ background: "rgba(0,0,0,0.25)" }}
+          >
+            <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+              Live Preview
+            </span>
+            {isValid && (
+              <span className="text-[10px] text-muted-foreground">
+                {rules.length} rule{rules.length !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-5">
+            {parseError ? (
+              <div
+                className="rounded-xl px-4 py-4 flex gap-3"
+                style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)" }}
+              >
+                <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-destructive">Invalid YAML</p>
+                  <p className="text-xs text-destructive/70 mt-1 font-mono break-all leading-relaxed">
+                    {parseError}
+                  </p>
+                </div>
+              </div>
+            ) : rules.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center py-16">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
+                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
+                >
+                  <FileText className="w-5 h-5 text-muted-foreground/30" />
+                </div>
+                <p className="text-sm text-muted-foreground">No rules yet</p>
+                <p className="text-xs text-muted-foreground/50 mt-1">
+                  Add rules to your YAML policy on the left
+                </p>
               </div>
             ) : (
-              <MonacoEditor
-                height="100%"
-                language="yaml"
-                theme="vs-dark"
-                value={currentYaml}
-                onChange={handleEditorChange}
-                options={{
-                  minimap: { enabled: false },
-                  fontSize: 13,
-                  lineHeight: 22,
-                  fontFamily: '"Geist Mono", "JetBrains Mono", monospace',
-                  padding: { top: 20, bottom: 20 },
-                  scrollBeyondLastLine: false,
-                  wordWrap: "on",
-                  tabSize: 2,
-                  smoothScrolling: true,
-                  cursorBlinking: "smooth",
-                }}
-              />
+              <div className="space-y-2.5">
+                {rules.map((rule, i) => (
+                  <RuleCard key={i} rule={rule} index={i} />
+                ))}
+              </div>
             )}
           </div>
         </div>
-
-        {/* Live preview */}
-        <div className="w-1/2 flex flex-col bg-[#0a0a0f] overflow-y-auto">
-          <div className="px-6 py-4 border-b border-[#1e1e2e] flex-shrink-0">
-            <p className="text-xs font-medium uppercase tracking-wide text-[#94a3b8]">
-              Live Preview
-            </p>
-          </div>
-
-          {parseError ? (
-            <div className="m-6 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-4 flex gap-3">
-              <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-red-400">Invalid YAML</p>
-                <p className="text-xs text-red-400/80 mt-1 font-mono break-all">
-                  {parseError}
-                </p>
-              </div>
-            </div>
-          ) : rules.length === 0 ? (
-            <div className="flex flex-col items-center justify-center flex-1 py-16 text-center px-6">
-              <p className="text-sm text-[#94a3b8] mb-1">No rules yet</p>
-              <p className="text-xs text-[#94a3b8]/60">
-                Write YAML policy rules on the left
-              </p>
-            </div>
-          ) : (
-            <div className="p-6">
-              <table className="w-full border border-[#1e1e2e] rounded-xl overflow-hidden text-sm">
-                <thead>
-                  <tr className="bg-[#111118] border-b border-[#1e1e2e]">
-                    {["Action", "Condition", "Decision"].map((h) => (
-                      <th
-                        key={h}
-                        className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-[#94a3b8]"
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rules.map((rule, i) => (
-                    <tr
-                      key={i}
-                      className="border-b border-[#1e1e2e]/50 last:border-0 hover:bg-white/[0.02]"
-                    >
-                      <td className="px-4 py-3 font-mono text-[#f8fafc]">
-                        {rule.action}
-                      </td>
-                      <td className="px-4 py-3 text-[#94a3b8] font-mono text-xs">
-                        {rule.condition ?? (
-                          <span className="text-[#94a3b8]/40 not-italic">
-                            always
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium border ${decisionColors[rule.decision] ?? "text-[#94a3b8] bg-white/5 border-white/10"}`}
-                        >
-                          {rule.decision}
-                        </span>
-                        {rule.approvers && (
-                          <span className="ml-2 text-xs text-[#94a3b8]">
-                            → {rule.approvers}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
       </div>
 
-      {/* Sticky bottom bar */}
-      <div className="h-14 flex items-center justify-between px-8 border-t border-[#1e1e2e] bg-[#111118] flex-shrink-0">
-        <p className="text-xs text-[#94a3b8]">
+      {/* Bottom save bar */}
+      <div
+        className="h-14 flex items-center justify-between px-8 border-t border-border flex-shrink-0 relative"
+        style={{ background: "#131313" }}
+      >
+        <p className="text-xs text-muted-foreground">
           {savedAt
-            ? `Last saved ${formatDistanceToNow(savedAt, { addSuffix: true })}`
+            ? `Saved ${formatDistanceToNow(savedAt, { addSuffix: true })}`
             : "Unsaved changes"}
         </p>
         <button
           onClick={() => saveMutation.mutate(currentYaml)}
           disabled={saveMutation.isPending || !!parseError}
-          className="inline-flex items-center gap-2 h-8 px-4 rounded-lg bg-gradient-to-b from-violet-500 to-violet-600 text-white font-medium text-sm hover:-translate-y-px transition-transform duration-150 disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0"
+          className="inline-flex items-center gap-2 h-9 px-5 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:-translate-y-px transition-transform duration-150 disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0"
         >
           {saveMutation.isPending ? (
             <>

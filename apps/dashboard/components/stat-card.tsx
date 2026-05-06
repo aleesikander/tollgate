@@ -36,23 +36,26 @@ export function StatCard({ icon: Icon, label, value, highlight }: StatCardProps)
   const displayed = useCounter(value);
 
   return (
-    <div className="bg-[#111118] border border-[#1e1e2e] rounded-xl p-6 flex items-center gap-4 hover:border-[#2e2e3e] transition-colors duration-200">
-      <div className="w-12 h-12 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center flex-shrink-0">
-        <Icon className="w-5 h-5 text-violet-400" />
-      </div>
-      <div>
-        <p
-          className={cn(
-            "text-3xl font-bold",
-            highlight && value > 0 ? "text-amber-400" : "text-[#f8fafc]"
-          )}
-        >
-          {displayed}
-        </p>
-        <p className="text-xs font-medium tracking-wide uppercase text-[#94a3b8] mt-0.5">
+    <div className="bg-card border border-border rounded-xl p-6 hover:border-white/20 transition-colors duration-200 flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium tracking-widest uppercase text-muted-foreground">
           {label}
         </p>
+        <Icon
+          className={cn(
+            "w-4 h-4",
+            highlight && value > 0 ? "text-primary" : "text-muted-foreground/30"
+          )}
+        />
       </div>
+      <p
+        className={cn(
+          "text-4xl font-bold tracking-tight leading-none",
+          highlight && value > 0 ? "text-primary" : "text-foreground"
+        )}
+      >
+        {displayed}
+      </p>
     </div>
   );
 }

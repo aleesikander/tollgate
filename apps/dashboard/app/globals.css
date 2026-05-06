@@ -41,35 +41,35 @@
   --radius-xl: calc(var(--radius) * 1.4);
 }
 
-/* Tollgate dark theme — always dark */
+/* Tollgate dark theme — always dark, matches landing page design system */
 :root {
-  --background: #0a0a0f;
-  --foreground: #f8fafc;
-  --card: #111118;
-  --card-foreground: #f8fafc;
-  --popover: #111118;
-  --popover-foreground: #f8fafc;
-  --primary: #7c3aed;
+  --background: #0a0a0a;
+  --foreground: #ffffff;
+  --card: #131313;
+  --card-foreground: #ffffff;
+  --popover: #131313;
+  --popover-foreground: #ffffff;
+  --primary: #F4533C;
   --primary-foreground: #ffffff;
-  --secondary: #1e1e2e;
-  --secondary-foreground: #f8fafc;
-  --muted: #1e1e2e;
-  --muted-foreground: #94a3b8;
-  --accent: #1e1e2e;
-  --accent-foreground: #f8fafc;
+  --secondary: #1a1a1a;
+  --secondary-foreground: #ffffff;
+  --muted: #1a1a1a;
+  --muted-foreground: rgba(255,255,255,0.42);
+  --accent: #1a1a1a;
+  --accent-foreground: #ffffff;
   --destructive: #ef4444;
-  --border: #1e1e2e;
-  --input: #1e1e2e;
-  --ring: #7c3aed;
-  --radius: 0.75rem;
-  --sidebar: #111118;
-  --sidebar-foreground: #f8fafc;
-  --sidebar-primary: #7c3aed;
+  --border: rgba(255,255,255,0.10);
+  --input: rgba(255,255,255,0.07);
+  --ring: #F4533C;
+  --radius: 0.5rem;
+  --sidebar: #0e0e0e;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #F4533C;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1e1e2e;
-  --sidebar-accent-foreground: #f8fafc;
-  --sidebar-border: #1e1e2e;
-  --sidebar-ring: #7c3aed;
+  --sidebar-accent: #1a1a1a;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255,255,255,0.07);
+  --sidebar-ring: #F4533C;
 }
 
 @layer base {
@@ -95,7 +95,7 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0a0a0f;
+  background: #0a0a0a;
 }
 ::-webkit-scrollbar-thumb {
   background: #2e2e3e;

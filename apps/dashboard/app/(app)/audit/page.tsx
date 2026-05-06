@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Download, FileText } from "lucide-react";
@@ -88,26 +88,41 @@ export default function AuditPage() {
     queryFn: getAgents,
   });
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["audit", agentFilter, decisionFilter, page],
-    queryFn: () =>
-      getAuditLog({
-        agent_id: agentFilter !== "all" ? agentFilter : undefined,
-        decision: decisionFilter !== "all" ? decisionFilter : undefined,
-        limit: PAGE_SIZE,
-        offset,
-      }),
+    queryFn: async () => {
+      try {
+        return await getAuditLog({
+          agent_id: agentFilter !== "all" ? agentFilter : undefined,
+          decision: decisionFilter !== "all" ? decisionFilter : undefined,
+          limit: PAGE_SIZE,
+          offset,
+        });
+      } catch {
+        return { items: [], total: 0 };
+      }
+    },
     placeholderData: (prev) => prev,
   });
 
-  // Fetch all for chart (no pagination) — only first 200 entries
   const { data: chartData } = useQuery({
     queryKey: ["audit-chart"],
-    queryFn: () => getAuditLog({ limit: 200, offset: 0 }),
+    queryFn: async () => {
+      try {
+        return await getAuditLog({ limit: 200, offset: 0 });
+      } catch {
+        return { items: [], total: 0 };
+      }
+    },
     staleTime: 60_000,
   });
 
   const hourly = generateHourlyData(chartData?.items ?? []);
+  const allItems = chartData?.items ?? [];
+  const allowedCount = allItems.filter((e) => e.decision === "allowed" || e.decision === "approved").length;
+  const deniedCount = allItems.filter((e) => e.decision === "denied" || e.decision === "rejected").length;
+  const pendingCount = allItems.filter((e) => e.decision === "pending").length;
+
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
@@ -140,45 +155,81 @@ export default function AuditPage() {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="flex-1"
+      className="flex-1 relative"
     >
+      {/* Ambient glow */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: "radial-gradient(ellipse 70% 30% at 50% 0%, rgba(244,83,60,0.035) 0%, transparent 65%)",
+        }}
+      />
+
       {/* Header */}
-      <div className="h-16 flex items-center justify-between px-8 border-b border-[#1e1e2e]">
-        <h1 className="text-lg font-semibold text-[#f8fafc]">Audit Log</h1>
+      <div className="h-16 flex items-center justify-between px-8 border-b border-border relative">
+        <div>
+          <h1 className="text-base font-semibold text-foreground leading-none">Audit Log</h1>
+          <p className="text-xs text-muted-foreground mt-1">Full history of agent decisions</p>
+        </div>
         <button
           onClick={exportCsv}
-          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-[#1e1e2e] hover:bg-[#2e2e3e] text-[#f8fafc] font-medium text-sm transition-colors"
+          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg bg-secondary hover:bg-secondary/80 text-foreground font-medium text-sm transition-colors border border-border"
         >
           <Download className="w-4 h-4" />
           Export CSV
         </button>
       </div>
 
-      <div className="p-8 space-y-6">
+      <div className="relative p-8 space-y-5">
+        {/* Summary stats */}
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "Allowed", count: allowedCount, color: "#5BD982", bg: "rgba(91,217,130,0.07)", border: "rgba(91,217,130,0.2)" },
+            { label: "Denied", count: deniedCount, color: "#ef4444", bg: "rgba(239,68,68,0.07)", border: "rgba(239,68,68,0.2)" },
+            { label: "Pending", count: pendingCount, color: "#F4533C", bg: "rgba(244,83,60,0.07)", border: "rgba(244,83,60,0.2)" },
+          ].map(({ label, count, color, bg, border }) => (
+            <div
+              key={label}
+              className="rounded-xl px-5 py-4 flex items-center justify-between"
+              style={{ background: bg, border: `1px solid ${border}` }}
+            >
+              <span className="text-xs font-medium uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.45)" }}>
+                {label}
+              </span>
+              <span className="text-2xl font-bold tracking-tight" style={{ color }}>
+                {count}
+              </span>
+            </div>
+          ))}
+        </div>
+
         {/* Hourly chart */}
-        <div className="bg-[#111118] border border-[#1e1e2e] rounded-xl px-6 pt-4 pb-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-[#94a3b8] mb-3">
+        <div
+          className="rounded-xl px-6 pt-5 pb-3"
+          style={{ background: "#131313", border: "1px solid rgba(255,255,255,0.10)" }}
+        >
+          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-4">
             Activity — last 24h
           </p>
-          <ResponsiveContainer width="100%" height={120}>
+          <ResponsiveContainer width="100%" height={110}>
             <AreaChart data={hourly} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id="gradAllowed" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#5BD982" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#5BD982" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="gradDenied" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.25} />
                   <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="gradPending" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#F4533C" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#F4533C" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <XAxis
                 dataKey="hour"
-                tick={{ fontSize: 10, fill: "#94a3b8" }}
+                tick={{ fontSize: 10, fill: "rgba(255,255,255,0.3)" }}
                 axisLine={false}
                 tickLine={false}
                 interval={3}
@@ -186,39 +237,18 @@ export default function AuditPage() {
               <YAxis hide />
               <RechartTooltip
                 contentStyle={{
-                  background: "#111118",
-                  border: "1px solid #1e1e2e",
+                  background: "#131313",
+                  border: "1px solid rgba(255,255,255,0.10)",
                   borderRadius: 8,
                   fontSize: 12,
-                  color: "#f8fafc",
+                  color: "#ffffff",
                 }}
-                itemStyle={{ color: "#f8fafc" }}
-                cursor={{ stroke: "#2e2e3e" }}
+                itemStyle={{ color: "#ffffff" }}
+                cursor={{ stroke: "rgba(255,255,255,0.08)" }}
               />
-              <Area
-                type="monotone"
-                dataKey="allowed"
-                stackId="1"
-                stroke="#22c55e"
-                fill="url(#gradAllowed)"
-                strokeWidth={1.5}
-              />
-              <Area
-                type="monotone"
-                dataKey="denied"
-                stackId="1"
-                stroke="#ef4444"
-                fill="url(#gradDenied)"
-                strokeWidth={1.5}
-              />
-              <Area
-                type="monotone"
-                dataKey="pending"
-                stackId="1"
-                stroke="#f59e0b"
-                fill="url(#gradPending)"
-                strokeWidth={1.5}
-              />
+              <Area type="monotone" dataKey="allowed" stackId="1" stroke="#5BD982" fill="url(#gradAllowed)" strokeWidth={1.5} />
+              <Area type="monotone" dataKey="denied" stackId="1" stroke="#ef4444" fill="url(#gradDenied)" strokeWidth={1.5} />
+              <Area type="monotone" dataKey="pending" stackId="1" stroke="#F4533C" fill="url(#gradPending)" strokeWidth={1.5} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -226,170 +256,160 @@ export default function AuditPage() {
         {/* Filters */}
         <div className="flex items-center gap-3">
           <Select value={agentFilter} onValueChange={(v) => { setAgentFilter(v ?? "all"); setPage(0); }}>
-            <SelectTrigger className="w-52 bg-[#111118] border-[#1e1e2e] text-[#f8fafc] h-9">
-              <SelectValue placeholder="All agents" />
+            <SelectTrigger className="w-52 bg-card border-border text-foreground h-9">
+              <SelectValue>
+                {agentFilter === "all" ? "All agents" : (agents.find((a) => a.id === agentFilter)?.name ?? agentFilter)}
+              </SelectValue>
             </SelectTrigger>
-            <SelectContent className="bg-[#111118] border-[#1e1e2e] text-[#f8fafc]">
+            <SelectContent className="bg-card border-border text-foreground">
               <SelectItem value="all">All agents</SelectItem>
               {agents.map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {a.name}
-                </SelectItem>
+                <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
 
           <Select value={decisionFilter} onValueChange={(v) => { setDecisionFilter(v ?? "all"); setPage(0); }}>
-            <SelectTrigger className="w-48 bg-[#111118] border-[#1e1e2e] text-[#f8fafc] h-9">
-              <SelectValue placeholder="All decisions" />
+            <SelectTrigger className="w-48 bg-card border-border text-foreground h-9">
+              <SelectValue>
+                {DECISIONS.find((d) => d.value === decisionFilter)?.label ?? "All decisions"}
+              </SelectValue>
             </SelectTrigger>
-            <SelectContent className="bg-[#111118] border-[#1e1e2e] text-[#f8fafc]">
+            <SelectContent className="bg-card border-border text-foreground">
               {DECISIONS.map((d) => (
-                <SelectItem key={d.value} value={d.value}>
-                  {d.label}
-                </SelectItem>
+                <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
+
+          {(agentFilter !== "all" || decisionFilter !== "all") && (
+            <button
+              onClick={() => { setAgentFilter("all"); setDecisionFilter("all"); setPage(0); }}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
 
         {/* Table */}
-        <div className="bg-[#111118] border border-[#1e1e2e] rounded-xl overflow-hidden">
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{ background: "#131313", border: "1px solid rgba(255,255,255,0.10)" }}
+        >
           {isLoading ? (
             <div className="p-6 space-y-3">
               {Array.from({ length: 8 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 rounded bg-[#1e1e2e]" />
+                <Skeleton key={i} className="h-12 rounded bg-secondary" />
               ))}
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <p className="text-sm text-red-400">Failed to load audit log</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="mt-3 text-xs text-violet-400 hover:text-violet-300"
-              >
-                Retry
-              </button>
             </div>
           ) : (data?.items.length ?? 0) === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-12 h-12 rounded-xl bg-[#0a0a0f] border border-[#1e1e2e] flex items-center justify-center mb-4">
-                <FileText className="w-6 h-6 text-[#94a3b8]/40" />
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
+                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
+              >
+                <FileText className="w-6 h-6 text-muted-foreground/30" />
               </div>
-              <h3 className="text-sm font-medium text-[#f8fafc] mb-1">
-                No entries found
-              </h3>
-              <p className="text-xs text-[#94a3b8]">
+              <h3 className="text-sm font-medium text-foreground mb-1">No entries found</h3>
+              <p className="text-xs text-muted-foreground">
                 {decisionFilter !== "all" || agentFilter !== "all"
                   ? "Try adjusting your filters"
                   : "Actions will appear here once your agents start running"}
               </p>
             </div>
           ) : (
-            <>
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[#1e1e2e]">
-                    {["Time", "Agent", "Action", "Decision", "Payload", "Decided By"].map(
-                      (h) => (
-                        <th
-                          key={h}
-                          className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-[#94a3b8]"
+            <table className="w-full">
+              <thead>
+                <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                  {["Time", "Agent", "Action", "Decision", "Payload", "Decided By"].map((h) => (
+                    <th
+                      key={h}
+                      className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data?.items.map((entry: AuditEntry) => (
+                  <React.Fragment key={entry.id}>
+                    <tr
+                      className="transition-colors hover:bg-white/[0.025]"
+                      style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
+                    >
+                      <td className="px-6 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                        <Tooltip>
+                          <TooltipTrigger>
+                            {formatDistanceToNow(new Date(entry.created_at), { addSuffix: true })}
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-card border-border text-foreground text-xs">
+                            {format(new Date(entry.created_at), "MMM d, yyyy HH:mm:ss")}
+                          </TooltipContent>
+                        </Tooltip>
+                      </td>
+                      <td className="px-6 py-3 text-sm text-foreground truncate max-w-[140px]">
+                        {entry.agent_name ?? entry.agent_id.slice(0, 8)}
+                      </td>
+                      <td className="px-6 py-3 text-sm font-mono text-muted-foreground truncate max-w-[160px]">
+                        {entry.action_name}
+                      </td>
+                      <td className="px-6 py-3">
+                        <DecisionBadge decision={entry.decision as Decision} />
+                      </td>
+                      <td className="px-6 py-3">
+                        <button
+                          onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
+                          className="text-xs text-primary hover:text-primary/80 transition-colors"
                         >
-                          {h}
-                        </th>
-                      )
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {data?.items.map((entry: AuditEntry) => (
-                    <>
-                      <tr
-                        key={entry.id}
-                        className="border-b border-[#1e1e2e]/50 last:border-0 hover:bg-white/[0.02] transition-colors"
-                      >
-                        <td className="px-6 py-3 text-xs text-[#94a3b8] whitespace-nowrap">
-                          <Tooltip>
-                            <TooltipTrigger>
-                              {formatDistanceToNow(new Date(entry.created_at), {
-                                addSuffix: true,
-                              })}
-                            </TooltipTrigger>
-                            <TooltipContent className="bg-[#111118] border-[#2e2e3e] text-[#f8fafc] text-xs">
-                              {format(
-                                new Date(entry.created_at),
-                                "MMM d, yyyy HH:mm:ss"
-                              )}
-                            </TooltipContent>
-                          </Tooltip>
-                        </td>
-                        <td className="px-6 py-3 text-sm text-[#f8fafc] truncate max-w-[140px]">
-                          {entry.agent_name ?? entry.agent_id.slice(0, 8)}
-                        </td>
-                        <td className="px-6 py-3 text-sm font-mono text-[#94a3b8] truncate max-w-[160px]">
-                          {entry.action_name}
-                        </td>
-                        <td className="px-6 py-3">
-                          <DecisionBadge decision={entry.decision as Decision} />
-                        </td>
-                        <td className="px-6 py-3">
-                          <button
-                            onClick={() =>
-                              setExpandedId(
-                                expandedId === entry.id ? null : entry.id
-                              )
-                            }
-                            className="text-xs text-violet-400 hover:text-violet-300 transition-colors"
+                          {expandedId === entry.id ? "Hide" : "Show"}
+                        </button>
+                      </td>
+                      <td className="px-6 py-3 text-xs text-muted-foreground">
+                        {entry.decided_by ?? <span className="text-muted-foreground/30">—</span>}
+                      </td>
+                    </tr>
+                    {expandedId === entry.id && (
+                      <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                        <td colSpan={6} className="px-6 pb-4 pt-1">
+                          <pre
+                            className="text-xs font-mono text-muted-foreground rounded-lg p-4 overflow-x-auto"
+                            style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}
                           >
-                            {expandedId === entry.id ? "Hide" : "Show"}
-                          </button>
-                        </td>
-                        <td className="px-6 py-3 text-xs text-[#94a3b8]">
-                          {entry.decided_by ?? (
-                            <span className="text-[#94a3b8]/40">—</span>
-                          )}
+                            {JSON.stringify(entry.payload, null, 2)}
+                          </pre>
                         </td>
                       </tr>
-                      {expandedId === entry.id && (
-                        <tr key={`${entry.id}-exp`} className="border-b border-[#1e1e2e]/50">
-                          <td colSpan={6} className="px-6 pb-4">
-                            <pre className="text-xs font-mono text-[#94a3b8] bg-[#0a0a0f] rounded-lg p-4 overflow-x-auto">
-                              {JSON.stringify(entry.payload, null, 2)}
-                            </pre>
-                          </td>
-                        </tr>
-                      )}
-                    </>
-                  ))}
-                </tbody>
-              </table>
-            </>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
 
         {/* Pagination */}
         {total > PAGE_SIZE && (
           <div className="flex items-center justify-between">
-            <p className="text-xs text-[#94a3b8]">
-              Showing {offset + 1}–
-              {Math.min(offset + PAGE_SIZE, total)} of {total} results
+            <p className="text-xs text-muted-foreground">
+              Showing {offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of {total} results
             </p>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
                 disabled={page === 0}
-                className="w-8 h-8 rounded-lg bg-[#111118] border border-[#1e1e2e] flex items-center justify-center text-[#94a3b8] hover:text-[#f8fafc] hover:border-[#2e2e3e] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-8 h-8 rounded-lg bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="text-xs text-[#94a3b8] px-2">
+              <span className="text-xs text-muted-foreground px-2">
                 {page + 1} / {totalPages}
               </span>
               <button
                 onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                 disabled={page >= totalPages - 1}
-                className="w-8 h-8 rounded-lg bg-[#111118] border border-[#1e1e2e] flex items-center justify-center text-[#94a3b8] hover:text-[#f8fafc] hover:border-[#2e2e3e] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-8 h-8 rounded-lg bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-white/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>

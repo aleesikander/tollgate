@@ -1,0 +1,146 @@
+---
+title: API Reference
+description: Direct HTTP API for the Tollgate check endpoint.
+---
+
+<ApiLifecycle />
+
+## Authentication
+
+Agent API keys use Bearer token authentication:
+
+```http
+Authorization: Bearer tg_live_<your_api_key>
+```
+
+Agent API keys are created in the dashboard when you register an agent. They are scoped to a single agent — an agent can only check and poll its own actions.
+
+---
+
+## Check an action
+
+Evaluates whether an action is permitted according to the agent's active policy.
+
+```http
+POST /v1/check
+```
+
+### Request body
+
+```json
+{
+  "action_name": "issue_refund",
+  "payload": {
+    "amount": 75.00,
+    "customer_id": "cus_123",
+    "reason": "Duplicate charge"
+  },
+  "idempotency_key": "uuid-optional"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `action_name` | string | Yes | The action name, matched against policy rules |
+| `payload` | object | Yes | Arbitrary key-value data evaluated by `when` conditions |
+| `idempotency_key` | string | No | Re-sending the same key returns the original decision without creating a new record |
+
+### Response
+
+```json
+{
+  "decision": "pending",
+  "action_id": "018e1234-5678-7abc-def0-123456789abc",
+  "reason": ""
+}
+```
+
+| Field | Description |
+|---|---|
+| `decision` | `"allowed"`, `"denied"`, or `"pending"` |
+| `action_id` | UUID for this action — use it to poll for approval |
+| `reason` | Non-empty when `decision` is `"denied"`. The `reason` string from the matching policy rule |
+
+### Decision values
+
+| Decision | HTTP status | Meaning |
+|---|---|---|
+| `allowed` | 200 | Policy permits this action |
+| `denied` | 200 | Policy blocks this action |
+| `pending` | 200 | Policy requires human approval — poll `/v1/check/{action_id}` |
+
+<Callout type="info">
+All three decisions return HTTP 200. Use the `decision` field, not the status code, to determine what to do.
+</Callout>
+
+### Error responses
+
+| Status | Code | Description |
+|---|---|---|
+| 401 | `MISSING_TOKEN` | No Authorization header |
+| 401 | `INVALID_API_KEY` | Key not found or revoked |
+| 422 | `VALIDATION_ERROR` | Missing required fields |
+
+---
+
+## Poll for decision
+
+Poll the status of a pending action. Use this after receiving `"pending"` from `/v1/check` to wait for a human decision.
+
+```http
+GET /v1/check/{action_id}
+```
+
+### Path parameters
+
+| Parameter | Description |
+|---|---|
+| `action_id` | The UUID returned by `POST /v1/check` |
+
+### Response
+
+```json
+{
+  "action_id": "018e1234-5678-7abc-def0-123456789abc",
+  "decision": "approved",
+  "reason": ""
+}
+```
+
+`decision` will be one of:
+- `"pending"` — still waiting for a human
+- `"allowed"` — approved (maps from `approved` internally)
+- `"denied"` — rejected (maps from `rejected` internally)
+
+### Polling strategy
+
+The SDKs handle polling automatically. If you're integrating directly:
+
+```python
+import time
+import httpx
+
+def wait_for_decision(action_id: str, api_key: str, timeout: int = 300) -> str:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        resp = httpx.get(
+            f"https://api.tollgate.dev/v1/check/{action_id}",
+            headers={"Authorization": f"Bearer {api_key}"},
+        )
+        data = resp.json()
+        if data["decision"] != "pending":
+            return data["decision"]
+        time.sleep(3)
+    raise TimeoutError(f"No decision after {timeout}s")
+```
+
+---
+
+## Base URLs
+
+| Environment | URL |
+|---|---|
+| Production | `https://api.tollgate.dev` |
+| Local dev | `http://localhost:8000` |
+
+Set the base URL via the `TOLLGATE_BASE_URL` environment variable or the SDK constructor option.

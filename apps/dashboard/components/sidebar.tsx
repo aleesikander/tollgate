@@ -3,19 +3,23 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  DoorOpen,
   LayoutDashboard,
   Bot,
   FileText,
+  Settings,
   LogOut,
 } from "lucide-react";
+import { Logo } from "@tollgate/ui";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
+import { useQuery } from "@tanstack/react-query";
+import { getMe } from "@/lib/api";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/agents", label: "Agents", icon: Bot },
   { href: "/audit", label: "Audit Log", icon: FileText },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar() {
@@ -23,19 +27,22 @@ export function Sidebar() {
   const router = useRouter();
   const { logout } = useAuth();
 
+  const { data: me } = useQuery({
+    queryKey: ["me"],
+    queryFn: getMe,
+    staleTime: 300_000,
+  });
+
   function handleLogout() {
     logout();
     router.push("/login");
   }
 
   return (
-    <aside className="w-60 flex-shrink-0 bg-[#111118] border-r border-[#1e1e2e] flex flex-col h-full fixed left-0 top-0 bottom-0">
+    <aside className="w-60 flex-shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col h-full fixed left-0 top-0 bottom-0">
       {/* Logo */}
-      <div className="h-16 flex items-center px-5 border-b border-[#1e1e2e]">
-        <DoorOpen className="w-5 h-5 text-violet-400 mr-2.5 flex-shrink-0" />
-        <span className="font-bold text-[#f8fafc] text-lg tracking-tight">
-          tollgate
-        </span>
+      <div className="h-16 flex items-center px-5 border-b border-sidebar-border">
+        <Logo size="md" variant="full" />
       </div>
 
       {/* Nav */}
@@ -47,11 +54,20 @@ export function Sidebar() {
               key={href}
               href={href}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150",
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 relative",
                 active
-                  ? "bg-violet-500/10 text-violet-300 border-l-2 border-violet-500 pl-[10px]"
-                  : "text-[#94a3b8] hover:text-[#f8fafc] hover:bg-white/[0.04]"
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"
               )}
+              style={
+                active
+                  ? {
+                      background: "rgba(244,83,60,0.08)",
+                      borderLeft: "2px solid #F4533C",
+                      paddingLeft: "10px",
+                    }
+                  : undefined
+              }
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
               {label}
@@ -60,11 +76,33 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Bottom */}
-      <div className="px-3 pb-4 border-t border-[#1e1e2e] pt-4">
+      {/* Bottom: workspace pill + logout */}
+      <div className="px-3 pb-4 border-t border-sidebar-border pt-3 space-y-1">
+        {me && (
+          <div
+            className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg mb-1"
+            style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            <div
+              className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 text-[10px] font-bold"
+              style={{ background: "rgba(244,83,60,0.12)", border: "1px solid rgba(244,83,60,0.2)", color: "#F4533C" }}
+            >
+              {(me.org_name ?? me.email ?? "?")[0].toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-foreground truncate leading-tight">
+                {me.org_name ?? me.email}
+              </p>
+              <p className="text-[10px] text-muted-foreground/60 truncate leading-tight mt-0.5">
+                {me.email}
+              </p>
+            </div>
+          </div>
+        )}
+
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#94a3b8] hover:text-red-400 hover:bg-red-500/5 transition-all duration-150 w-full"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all duration-150 w-full"
         >
           <LogOut className="w-4 h-4 flex-shrink-0" />
           Log out
