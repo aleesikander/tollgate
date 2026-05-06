@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Copy, CheckCircle, ExternalLink, ChevronRight, Slack, Unlink, Loader2 } from "lucide-react";
+import { Copy, CheckCircle, ExternalLink, ChevronRight, MessageSquare, Unlink, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -349,7 +349,7 @@ export default function SettingsPage() {
                             className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
                             style={{ background: "rgba(91,217,130,0.1)", border: "1px solid rgba(91,217,130,0.2)" }}
                           >
-                            <Slack className="w-4 h-4" style={{ color: "#5BD982" }} />
+                            <MessageSquare className="w-4 h-4" style={{ color: "#5BD982" }} />
                           </div>
                           <div>
                             <p className="text-sm font-medium text-foreground">{slackIntegration.team_name}</p>
@@ -383,7 +383,7 @@ export default function SettingsPage() {
                         >
                           {connecting
                             ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            : <Slack className="w-3.5 h-3.5" />}
+                            : <MessageSquare className="w-3.5 h-3.5" />}
                           Connect Slack
                         </button>
                       </div>
