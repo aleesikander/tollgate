@@ -1,5 +1,8 @@
 import { ArrowRight, Check } from "lucide-react";
 
+const DOCS_URL = process.env.NEXT_PUBLIC_DOCS_URL ?? "http://localhost:3002";
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3001";
+
 const STATS = [
   { value: "< 50ms", label: "median check latency" },
   { value: "100%", label: "audit coverage" },
@@ -185,14 +188,14 @@ export function Hero() {
             {/* CTAs */}
             <div className="flex items-center gap-4 mb-12 flex-wrap">
               <a
-                href="/signup"
+                href={`${DASHBOARD_URL}/signup`}
                 className="inline-flex items-center gap-2 bg-accent text-primary px-5 py-[11px] rounded-tg-md text-body-lg font-medium hover:opacity-90 transition-opacity"
               >
                 Start for free
                 <ArrowRight size={15} strokeWidth={2} />
               </a>
               <a
-                href="/docs"
+                href={`${DOCS_URL}/docs`}
                 className="inline-flex items-center gap-2 text-body-lg text-secondary hover:text-primary transition-colors"
               >
                 Read the docs

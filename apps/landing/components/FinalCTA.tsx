@@ -1,5 +1,8 @@
 import { ArrowRight } from "lucide-react";
 
+const DOCS_URL = process.env.NEXT_PUBLIC_DOCS_URL ?? "http://localhost:3002";
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost:3001";
+
 export function FinalCTA() {
   return (
     <section className="relative overflow-hidden py-28 border-t border-border-subtle">
@@ -26,14 +29,14 @@ export function FinalCTA() {
         </p>
         <div className="flex items-center justify-center gap-4 flex-wrap">
           <a
-            href="/signup"
+            href={`${DASHBOARD_URL}/signup`}
             className="inline-flex items-center gap-2 bg-accent text-primary px-7 py-[13px] rounded-tg-md text-body-lg font-medium hover:opacity-90 transition-opacity"
           >
             Start for free
             <ArrowRight size={15} strokeWidth={2} />
           </a>
           <a
-            href="/docs"
+            href={`${DOCS_URL}/docs`}
             className="inline-flex items-center gap-2 text-body-lg text-secondary hover:text-primary transition-colors px-7 py-[13px]"
           >
             Read the docs

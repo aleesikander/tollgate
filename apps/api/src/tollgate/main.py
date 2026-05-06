@@ -40,10 +40,19 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS — allow the dashboard dev server
+    # CORS
+    origins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+        "https://app.usetollgate.com",
+        "https://www.usetollgate.com",
+        "https://usetollgate.com",
+    ]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"],
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

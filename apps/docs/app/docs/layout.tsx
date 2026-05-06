@@ -9,6 +9,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       tree={source.pageTree}
       nav={{
         title: <Logo size="sm" variant="full" />,
+        url: process.env.NEXT_PUBLIC_LANDING_URL ?? "https://www.usetollgate.com",
       }}
     >
       {children}

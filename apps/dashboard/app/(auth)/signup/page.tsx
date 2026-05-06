@@ -70,7 +70,9 @@ function LeftPanel() {
 
       {/* Logo */}
       <div className="relative">
-        <Logo size="md" variant="full" />
+        <a href={process.env.NEXT_PUBLIC_LANDING_URL ?? "https://www.usetollgate.com"} aria-label="Tollgate home">
+          <Logo size="md" variant="full" />
+        </a>
       </div>
 
       {/* Main content */}

@@ -42,7 +42,9 @@ export function Sidebar() {
     <aside className="w-60 flex-shrink-0 bg-sidebar border-r border-sidebar-border flex flex-col h-full fixed left-0 top-0 bottom-0">
       {/* Logo */}
       <div className="h-16 flex items-center px-5 border-b border-sidebar-border">
-        <Logo size="md" variant="full" />
+        <Link href="/dashboard" aria-label="Tollgate home">
+          <Logo size="md" variant="full" />
+        </Link>
       </div>
 
       {/* Nav */}
