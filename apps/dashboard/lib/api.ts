@@ -195,3 +195,29 @@ export async function getRecentActivity(
 ): Promise<AuditResponse> {
   return getAuditLog({ limit });
 }
+
+// Slack
+export interface SlackIntegration {
+  id: string;
+  team_id: string;
+  team_name: string;
+  installed_at: string;
+}
+
+export async function getSlackIntegration(): Promise<SlackIntegration | null> {
+  try {
+    return await request<SlackIntegration>("/integrations/slack");
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
+  }
+}
+
+export async function getSlackConnectUrl(): Promise<string> {
+  const res = await request<{ url: string }>("/integrations/slack/connect-url");
+  return res.url;
+}
+
+export async function disconnectSlack(): Promise<void> {
+  return request<void>("/integrations/slack", { method: "DELETE" });
+}

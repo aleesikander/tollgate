@@ -1,11 +1,13 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Copy, CheckCircle, ExternalLink, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { Copy, CheckCircle, ExternalLink, ChevronRight, Slack, Unlink, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { getMe } from "@/lib/api";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+import { getMe, getSlackIntegration, getSlackConnectUrl, disconnectSlack } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -83,13 +85,50 @@ const TABS = [
 ];
 
 export default function SettingsPage() {
-  const [active, setActive] = useState("general");
+  const searchParams = useSearchParams();
+  const [active, setActive] = useState(() => searchParams.get("tab") ?? "general");
+  const queryClient = useQueryClient();
 
   const { data: me, isLoading } = useQuery({
     queryKey: ["me"],
     queryFn: getMe,
     staleTime: 60_000,
   });
+
+  const { data: slackIntegration, isLoading: slackLoading } = useQuery({
+    queryKey: ["slack-integration"],
+    queryFn: getSlackIntegration,
+    staleTime: 30_000,
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: disconnectSlack,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["slack-integration"] });
+      toast.success("Slack disconnected");
+    },
+    onError: () => toast.error("Failed to disconnect Slack"),
+  });
+
+  const [connecting, setConnecting] = useState(false);
+
+  async function handleConnectSlack() {
+    setConnecting(true);
+    try {
+      const url = await getSlackConnectUrl();
+      window.location.href = url;
+    } catch {
+      toast.error("Failed to start Slack connection");
+      setConnecting(false);
+    }
+  }
+
+  useEffect(() => {
+    const success = searchParams.get("success");
+    const error = searchParams.get("error");
+    if (success === "slack") toast.success("Slack connected successfully!");
+    if (error === "slack_failed") toast.error("Slack connection failed. Please try again.");
+  }, [searchParams]);
 
   return (
     <motion.div
@@ -291,124 +330,64 @@ export default function SettingsPage() {
                 </SettingSection>
 
                 <SettingSection
-                  title="Setup guide"
-                  description="Connect your Slack workspace to enable approval notifications. Takes about 5 minutes."
+                  title="Workspace connection"
+                  description="Connect your Slack workspace to enable approval notifications."
                 >
                   <div
                     className="rounded-xl overflow-hidden"
                     style={{ background: "#131313", border: "1px solid rgba(255,255,255,0.10)" }}
                   >
-                    <div>
-                      {[
-                        {
-                          n: "1",
-                          title: "Create a Slack App",
-                          body: (
-                            <>
-                              Go to{" "}
-                              <a
-                                href="https://api.slack.com/apps"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary hover:text-primary/80 underline underline-offset-2"
-                              >
-                                api.slack.com/apps
-                              </a>{" "}
-                              and create a new app. Under{" "}
-                              <span className="text-foreground font-medium">OAuth &amp; Permissions</span>, add bot scopes:{" "}
-                              <code
-                                className="text-xs font-mono px-1.5 py-0.5 rounded"
-                                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
-                              >
-                                chat:write
-                              </code>{" "}
-                              <code
-                                className="text-xs font-mono px-1.5 py-0.5 rounded"
-                                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
-                              >
-                                channels:read
-                              </code>
-                            </>
-                          ),
-                        },
-                        {
-                          n: "2",
-                          title: "Set environment variables",
-                          body: (
-                            <div
-                              className="font-mono text-xs text-muted-foreground space-y-1 mt-2 rounded-lg px-4 py-3"
-                              style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}
-                            >
-                              <div><span className="text-foreground">SLACK_BOT_TOKEN</span>=xoxb-...</div>
-                              <div><span className="text-foreground">SLACK_SIGNING_SECRET</span>=...</div>
-                              <div><span className="text-foreground">ENCRYPTION_KEY</span>=your-fernet-key</div>
-                            </div>
-                          ),
-                        },
-                        {
-                          n: "3",
-                          title: "Configure Interactivity",
-                          body: (
-                            <>
-                              Enable{" "}
-                              <span className="text-foreground font-medium">Interactivity &amp; Shortcuts</span>{" "}
-                              and set the Request URL:
-                              <div
-                                className="font-mono text-xs text-muted-foreground mt-2 rounded-lg px-4 py-2.5"
-                                style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}
-                              >
-                                https://your-domain.com/slack/interactive
-                              </div>
-                            </>
-                          ),
-                        },
-                        {
-                          n: "4",
-                          title: "Invite the bot to your channel",
-                          body: (
-                            <>
-                              In Slack, run{" "}
-                              <code
-                                className="text-xs font-mono px-1.5 py-0.5 rounded"
-                                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
-                              >
-                                /invite @tollgate
-                              </code>{" "}
-                              in the channel you want approval requests sent to.
-                            </>
-                          ),
-                        },
-                      ].map(({ n, title, body }) => (
-                        <div
-                          key={n}
-                          className="px-6 py-5 flex gap-4"
-                          style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
-                        >
+                    {slackLoading ? (
+                      <div className="px-6 py-5 flex items-center gap-3">
+                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Checking connection…</span>
+                      </div>
+                    ) : slackIntegration ? (
+                      <div className="px-6 py-5 flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
                           <div
-                            className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-                            style={{ background: "rgba(244,83,60,0.1)", border: "1px solid rgba(244,83,60,0.22)" }}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                            style={{ background: "rgba(91,217,130,0.1)", border: "1px solid rgba(91,217,130,0.2)" }}
                           >
-                            <span className="text-[10px] font-bold" style={{ color: "#F4533C" }}>{n}</span>
+                            <Slack className="w-4 h-4" style={{ color: "#5BD982" }} />
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground mb-1.5">{title}</p>
-                            <div className="text-sm text-muted-foreground leading-relaxed">{body}</div>
+                          <div>
+                            <p className="text-sm font-medium text-foreground">{slackIntegration.team_name}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Connected · {new Date(slackIntegration.installed_at).toLocaleDateString()}
+                            </p>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-4">
-                    <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span>
-                      Full guide in the{" "}
-                      <a
-                        href="/docs/integrations/slack"
-                        className="text-primary hover:text-primary/80 underline underline-offset-2"
-                      >
-                        Slack integration docs
-                      </a>
-                    </span>
+                        <button
+                          onClick={() => disconnectMutation.mutate()}
+                          disabled={disconnectMutation.isPending}
+                          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                        >
+                          {disconnectMutation.isPending
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <Unlink className="w-3.5 h-3.5" />}
+                          Disconnect
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="px-6 py-5 flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Not connected</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Connect Slack to receive approval notifications</p>
+                        </div>
+                        <button
+                          onClick={handleConnectSlack}
+                          disabled={connecting}
+                          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+                          style={{ background: "#F4533C", color: "#fff" }}
+                        >
+                          {connecting
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <Slack className="w-3.5 h-3.5" />}
+                          Connect Slack
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </SettingSection>
               </>

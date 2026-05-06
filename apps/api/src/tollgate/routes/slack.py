@@ -38,17 +38,41 @@ class SlackIntegrationResponse(BaseModel):
 # OAuth Routes
 
 
+@router.get("", response_model=SlackIntegrationResponse | None)
+async def get_slack_integration(
+    current_user: AuthenticatedUser,
+    slack_service: SlackServiceDep,
+) -> SlackIntegrationResponse | None:
+    """Get current Slack integration status for the org."""
+    integration = await slack_service.get_integration(current_user.org_id)
+    if not integration:
+        return None
+    return SlackIntegrationResponse(
+        id=str(integration.id),
+        team_id=integration.team_id,
+        team_name=integration.team_name,
+        installed_at=integration.installed_at,
+    )
+
+
+@router.get("/connect-url")
+async def get_connect_url(
+    current_user: AuthenticatedUser,
+    slack_service: SlackServiceDep,
+) -> dict[str, str]:
+    """Return the Slack OAuth URL so the frontend can redirect."""
+    state = f"{current_user.org_id}:{current_user.id}"
+    return {"url": slack_service.get_oauth_url(state)}
+
+
 @router.get("/install")
 async def install_slack(
     current_user: AuthenticatedUser,
     slack_service: SlackServiceDep,
 ) -> RedirectResponse:
     """Redirect to Slack OAuth flow."""
-    # Generate state token with user/org info for callback
     state = f"{current_user.org_id}:{current_user.id}"
-
     oauth_url = slack_service.get_oauth_url(state)
-
     return RedirectResponse(url=oauth_url, status_code=302)
 
 
@@ -78,13 +102,12 @@ async def slack_callback(
         logger.error("slack_oauth_callback_failed", error=e.message, org_id=str(org_id))
         # Redirect to dashboard with error
         return RedirectResponse(
-            url=f"{settings.dashboard_url}/settings/integrations?error=slack_failed",
+            url=f"{settings.dashboard_url}/settings?tab=slack&error=slack_failed",
             status_code=302,
         )
 
-    # Redirect to dashboard success page
     return RedirectResponse(
-        url=f"{settings.dashboard_url}/settings/integrations?success=slack",
+        url=f"{settings.dashboard_url}/settings?tab=slack&success=slack",
         status_code=302,
     )
 
