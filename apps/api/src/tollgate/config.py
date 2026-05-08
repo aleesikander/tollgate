@@ -54,6 +54,9 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     resend_from_email: str = "Tollgate <noreply@usetollgate.com>"
 
+    # Google OAuth
+    google_client_id: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

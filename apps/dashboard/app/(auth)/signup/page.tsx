@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
-import { signup } from "@/lib/api";
+import { GoogleSignInButton, OAuthDivider } from "@/components/GoogleSignInButton";
+import { signup, googleLogin } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -177,6 +178,19 @@ export default function SignupPage() {
     }
   }
 
+  async function handleGoogleCredential(idToken: string) {
+    setLoading(true);
+    try {
+      const res = await googleLogin(idToken);
+      setToken(res.access_token);
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Google sign-in failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
       <LeftPanel />
@@ -193,6 +207,12 @@ export default function SignupPage() {
             <h1 className="text-2xl font-semibold text-foreground tracking-tight mb-1.5">Create an account</h1>
             <p className="text-sm text-muted-foreground">Set up your Tollgate workspace in seconds</p>
           </div>
+
+          <div className="mb-5">
+            <GoogleSignInButton onCredential={handleGoogleCredential} label="signup_with" />
+          </div>
+
+          <OAuthDivider />
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">

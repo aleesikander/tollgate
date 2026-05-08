@@ -155,6 +155,72 @@ class AuthService:
         except jwt.InvalidTokenError:
             return False
 
+    async def google_oauth_login(self, id_token: str) -> tuple[User, str]:
+        """Verify a Google ID token and return (user, jwt).
+
+        Creates the user and a personal org on first sign-in.
+        Links the google_sub to an existing email/password account if the
+        email already exists.
+        """
+        from google.auth.transport import requests as google_requests
+        from google.oauth2 import id_token as google_id_token
+
+        settings = get_settings()
+        if not settings.google_client_id:
+            raise AuthError("GOOGLE_NOT_CONFIGURED", "Google login is not configured")
+
+        try:
+            idinfo = google_id_token.verify_oauth2_token(
+                id_token,
+                google_requests.Request(),
+                settings.google_client_id,
+            )
+        except Exception:
+            raise AuthError("INVALID_GOOGLE_TOKEN", "Invalid Google token")
+
+        google_sub: str = idinfo["sub"]
+        email: str = idinfo["email"]
+        name: str = idinfo.get("name") or email.split("@")[0]
+
+        # Try by google_sub first (returning Google user)
+        result = await self.session.execute(select(User).where(User.google_sub == google_sub))
+        user = result.scalar_one_or_none()
+        if user:
+            token = self.create_jwt_token(user)
+            return user, token
+
+        # Try by email (existing password account — link Google sub)
+        result = await self.session.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
+        if user:
+            user.google_sub = google_sub
+            await self.session.flush()
+            token = self.create_jwt_token(user)
+            logger.info("google_linked_existing_user", user_id=str(user.id))
+            return user, token
+
+        # New user — create org and owner
+        org = Organization(
+            name=f"{name}'s workspace",
+            slug=self._generate_slug(name),
+        )
+        self.session.add(org)
+        await self.session.flush()
+
+        user = User(
+            org_id=org.id,
+            email=email,
+            hashed_password=None,
+            google_sub=google_sub,
+            role=UserRole.OWNER,
+        )
+        self.session.add(user)
+        await self.session.flush()
+
+        logger.info("google_created_user", user_id=str(user.id), org_id=str(org.id))
+        token = self.create_jwt_token(user)
+        return user, token
+
     async def reset_password(self, token: str, new_password: str) -> None:
         """Reset a user's password using a valid reset token."""
         # Decode without verification to extract sub (user_id)

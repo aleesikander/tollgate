@@ -133,6 +133,25 @@ async def reset_password(request: ResetPasswordRequest, session: DBSession) -> F
     return ForgotPasswordResponse(message="Password updated successfully.")
 
 
+class GoogleLoginRequest(BaseModel):
+    id_token: str
+
+
+@router.post("/google", response_model=AuthResponse)
+async def google_login(request: GoogleLoginRequest, session: DBSession) -> AuthResponse:
+    """Authenticate via Google OAuth ID token."""
+    auth_service = AuthService(session)
+    try:
+        user, token = await auth_service.google_oauth_login(request.id_token)
+    except AuthError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"error": {"code": e.code, "message": e.message}},
+        )
+    await session.commit()
+    return AuthResponse(access_token=token, user_id=user.id, org_id=user.org_id)
+
+
 @router.post("/login", response_model=AuthResponse)
 async def login(request: LoginRequest, session: DBSession) -> AuthResponse:
     """Authenticate a user and return a JWT token."""

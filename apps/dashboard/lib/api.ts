@@ -97,6 +97,13 @@ export async function signup(
   });
 }
 
+export async function googleLogin(idToken: string): Promise<{ access_token: string }> {
+  return request("/auth/google", {
+    method: "POST",
+    body: JSON.stringify({ id_token: idToken }),
+  });
+}
+
 // Agents
 export async function getAgents(): Promise<Agent[]> {
   return request<Agent[]>("/agents");
