@@ -1,9 +1,7 @@
 import { Nav } from "../components/Nav";
 import { Hero } from "../components/Hero";
-import { HowItWorks } from "../components/HowItWorks";
-import { LiveEval } from "../components/LiveEval";
-import { UseCases } from "../components/UseCases";
-import { PricingTeaser } from "../components/PricingTeaser";
+import { PainPoints } from "../components/PainPoints";
+import { JourneyDemo } from "../components/JourneyDemo";
 import { FinalCTA } from "../components/FinalCTA";
 import { Footer } from "../components/Footer";
 
@@ -13,10 +11,8 @@ export default function Home() {
       <Nav />
       <main className="pt-[60px]">
         <Hero />
-        <HowItWorks />
-        <LiveEval />
-        <UseCases />
-        <PricingTeaser />
+        <PainPoints />
+        <JourneyDemo />
         <FinalCTA />
       </main>
       <Footer />
