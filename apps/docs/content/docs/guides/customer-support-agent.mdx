@@ -11,16 +11,7 @@ This guide adds Tollgate in 15 minutes. Small refunds go through automatically. 
 
 ## What you'll build
 
-```
-customer message → agent → tg.check("issue_refund", {...})
-                                 ↓
-                    amount ≤ $50?  → allow instantly
-                    amount > $50?  → Slack message to #approvals
-                                          ↓
-                                   human clicks Approve
-                                          ↓
-                               Stripe refund executes
-```
+<WhatYoullBuildFlow />
 
 ---
 

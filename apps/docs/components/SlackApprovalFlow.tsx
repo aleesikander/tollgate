@@ -13,7 +13,7 @@ const STEPS = [
   { n: 8, label: "SDK poll returns", detail: "Agent proceeds with the action — or stops cleanly" },
 ];
 
-const TICK_MS = 950;
+const TICK_MS = 1600;
 const ACCENT = "#F4533C";
 
 // Icons as simple SVG paths
@@ -44,7 +44,7 @@ export function SlackApprovalFlow() {
         borderRadius: 14,
         border: "1px solid var(--color-fd-border)",
         background: "var(--color-fd-card)",
-        padding: 20,
+        padding: 28,
       }}
     >
       <style>{`
@@ -54,7 +54,7 @@ export function SlackApprovalFlow() {
         }
       `}</style>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 24px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 28px" }}>
         {STEPS.map((step, i) => {
           const isActive = i === active;
           const isDone = i < active;
@@ -65,9 +65,9 @@ export function SlackApprovalFlow() {
               style={{
                 display: "flex",
                 alignItems: "flex-start",
-                gap: 10,
-                padding: "10px 12px",
-                borderRadius: 9,
+                gap: 12,
+                padding: "13px 15px",
+                borderRadius: 10,
                 border: `1px solid ${
                   isActive ? "rgba(244,83,60,0.45)" : isDone ? "rgba(244,83,60,0.15)" : "var(--color-fd-border)"
                 }`,
@@ -80,14 +80,14 @@ export function SlackApprovalFlow() {
               {/* Step number */}
               <div
                 style={{
-                  width: 22,
-                  height: 22,
+                  width: 26,
+                  height: 26,
                   borderRadius: "50%",
                   flexShrink: 0,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: 700,
                   fontFamily: "monospace",
                   background: isActive ? ACCENT : isDone ? "rgba(244,83,60,0.2)" : "rgba(255,255,255,0.05)",
@@ -104,7 +104,7 @@ export function SlackApprovalFlow() {
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
                   <div
                     style={{
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: 600,
                       lineHeight: 1.3,
                       color: isActive || isDone ? "var(--color-fd-foreground)" : "var(--color-fd-muted-foreground)",
@@ -129,8 +129,8 @@ export function SlackApprovalFlow() {
                 </div>
                 <div
                   style={{
-                    fontSize: 10,
-                    lineHeight: 1.4,
+                    fontSize: 11,
+                    lineHeight: 1.5,
                     color: "var(--color-fd-muted-foreground)",
                     opacity: isActive ? 1 : isDone ? 0.7 : 0.5,
                     transition: "opacity 0.4s ease",

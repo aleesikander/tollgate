@@ -12,6 +12,7 @@ import { ApiLifecycle } from "@/components/ApiLifecycle";
 import { SlackApprovalFlow } from "@/components/SlackApprovalFlow";
 import { SlackMessageDemo } from "@/components/SlackMessageDemo";
 import { AuditLogDemo } from "@/components/AuditLogDemo";
+import { WhatYoullBuildFlow } from "@/components/WhatYoullBuildFlow";
 
 interface Props {
   params: Promise<{ slug?: string[] }>;
@@ -44,6 +45,7 @@ export default async function Page({ params }: Props) {
             SlackApprovalFlow,
             SlackMessageDemo,
             AuditLogDemo,
+            WhatYoullBuildFlow,
           }}
         />
       </DocsBody>
