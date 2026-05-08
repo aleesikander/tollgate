@@ -10,6 +10,8 @@ import { QuickstartStepper } from "@/components/QuickstartStepper";
 import { PolicyEvalFlow } from "@/components/PolicyEvalFlow";
 import { ApiLifecycle } from "@/components/ApiLifecycle";
 import { SlackApprovalFlow } from "@/components/SlackApprovalFlow";
+import { SlackMessageDemo } from "@/components/SlackMessageDemo";
+import { AuditLogDemo } from "@/components/AuditLogDemo";
 
 interface Props {
   params: Promise<{ slug?: string[] }>;
@@ -40,6 +42,8 @@ export default async function Page({ params }: Props) {
             PolicyEvalFlow,
             ApiLifecycle,
             SlackApprovalFlow,
+            SlackMessageDemo,
+            AuditLogDemo,
           }}
         />
       </DocsBody>

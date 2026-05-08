@@ -80,6 +80,10 @@ default: allow
 
 Click **Save Policy**. This is now live — no deploy needed.
 
+This is how Tollgate evaluates each incoming action against your rules:
+
+<PolicyEvalFlow />
+
 ---
 
 ## Step 3 — Connect Slack (3 min)
@@ -87,6 +91,10 @@ Click **Save Policy**. This is now live — no deploy needed.
 Go to **Settings → Slack → Connect Slack**. Authorize your workspace.
 
 When Tollgate sends an approval request, it will post to `#approvals` with two buttons — **Approve** and **Reject**. The agent blocks and waits for the click.
+
+Here's the full lifecycle from agent call to resumed execution:
+
+<SlackApprovalFlow />
 
 ---
 
@@ -154,19 +162,7 @@ That's it. The `@tg.guard` decorator intercepts the call, checks the policy, and
 
 When a $75 refund is requested, your `#approvals` channel gets:
 
-```
-🔔 Approval required — support-bot
-
-Action:   issue_refund
-Agent:    support-bot
-Payload:  amount: 75.0
-          customer_id: cus_abc123
-          reason: Item arrived damaged
-
-Expires in 5 minutes.
-
-[✅ Approve]   [❌ Reject]
-```
+<SlackMessageDemo />
 
 The agent is frozen at `issue_refund(...)` waiting. Click **Approve** — the Stripe refund executes and the customer gets their money. Click **Reject** — `ActionDenied` is raised and you handle it in your code.
 
@@ -176,11 +172,7 @@ The agent is frozen at `issue_refund(...)` waiting. Click **Approve** — the St
 
 Every call to `tg.guard()` creates a record in your [audit log](https://app.usetollgate.com/audit):
 
-| Action | Amount | Decision | Decided by | Time |
-|--------|--------|----------|------------|------|
-| issue_refund | $30 | allowed | policy | 14:02:01 |
-| issue_refund | $75 | approved | ali@company.com | 14:03:47 |
-| issue_refund | $750 | denied | policy | 14:05:12 |
+<AuditLogDemo />
 
 ---
 
