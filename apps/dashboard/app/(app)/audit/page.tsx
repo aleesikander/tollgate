@@ -128,15 +128,47 @@ export default function AuditPage() {
 
   function exportCsv() {
     if (!data?.items) return;
+    const headers = [
+      "Time (UTC)",
+      "Agent",
+      "Action",
+      "Payload",
+      "Decision",
+      "Decision Source",
+      "Reason",
+      "Decided At",
+      "Decided By",
+      "Decided By User ID",
+      "Approval Status",
+      "Approval Requested At",
+      "Approval Decided At",
+      "Approval Expires At",
+      "Slack Channel",
+      "Approvers Config",
+      "Idempotency Key",
+    ];
+    const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
     const rows = [
-      ["Time", "Agent", "Action", "Decision", "Decided By"].join(","),
+      headers.join(","),
       ...data.items.map((e) =>
         [
           format(new Date(e.created_at), "yyyy-MM-dd HH:mm:ss"),
           e.agent_name ?? e.agent_id,
           e.action_name,
+          escape(JSON.stringify(e.payload)),
           e.decision,
+          e.decision_source ?? "",
+          e.reason ?? "",
+          e.decided_at ? format(new Date(e.decided_at), "yyyy-MM-dd HH:mm:ss") : "",
           e.decided_by ?? "",
+          e.decided_by_user_id ?? "",
+          e.approval_status ?? "",
+          e.approval_requested_at ? format(new Date(e.approval_requested_at), "yyyy-MM-dd HH:mm:ss") : "",
+          e.approval_decided_at ? format(new Date(e.approval_decided_at), "yyyy-MM-dd HH:mm:ss") : "",
+          e.approval_expires_at ? format(new Date(e.approval_expires_at), "yyyy-MM-dd HH:mm:ss") : "",
+          e.slack_channel ?? "",
+          escape(JSON.stringify(e.approvers_config ?? {})),
+          e.idempotency_key ?? "",
         ].join(",")
       ),
     ].join("\n");
@@ -372,13 +404,57 @@ export default function AuditPage() {
                     </tr>
                     {expandedId === entry.id && (
                       <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                        <td colSpan={6} className="px-6 pb-4 pt-1">
-                          <pre
-                            className="text-xs font-mono text-muted-foreground rounded-lg p-4 overflow-x-auto"
-                            style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.08)" }}
-                          >
-                            {JSON.stringify(entry.payload, null, 2)}
-                          </pre>
+                        <td colSpan={6} className="px-6 pb-5 pt-2">
+                          <div className="grid grid-cols-3 gap-3">
+
+                            {/* Decision record */}
+                            <div className="rounded-lg p-4 flex flex-col gap-2.5" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 mb-0.5">Decision Record</p>
+                              {[
+                                ["Action", entry.action_name],
+                                ["Decision", entry.decision],
+                                ["Source", entry.decision_source ?? "—"],
+                                ["Reason", entry.reason ?? "—"],
+                                ["Requested", entry.created_at ? format(new Date(entry.created_at), "MMM d, yyyy HH:mm:ss") : "—"],
+                                ["Decided", entry.decided_at ? format(new Date(entry.decided_at), "MMM d, yyyy HH:mm:ss") : "—"],
+                                ["Idempotency Key", entry.idempotency_key ?? "—"],
+                              ].map(([k, v]) => (
+                                <div key={k} className="flex flex-col gap-0.5">
+                                  <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wide">{k}</span>
+                                  <span className="text-xs font-mono text-foreground/80 break-all">{v}</span>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Human approval */}
+                            <div className="rounded-lg p-4 flex flex-col gap-2.5" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 mb-0.5">Approval Details</p>
+                              {[
+                                ["Status", entry.approval_status ?? "no approval required"],
+                                ["Approved By", entry.decided_by ?? "—"],
+                                ["Approver ID", entry.decided_by_user_id ?? "—"],
+                                ["Approval Requested", entry.approval_requested_at ? format(new Date(entry.approval_requested_at), "MMM d, yyyy HH:mm:ss") : "—"],
+                                ["Approval Decided", entry.approval_decided_at ? format(new Date(entry.approval_decided_at), "MMM d, yyyy HH:mm:ss") : "—"],
+                                ["Expires At", entry.approval_expires_at ? format(new Date(entry.approval_expires_at), "MMM d, yyyy HH:mm:ss") : "—"],
+                                ["Slack Channel", entry.slack_channel ?? "—"],
+                                ["Approvers Config", entry.approvers_config ? JSON.stringify(entry.approvers_config) : "—"],
+                              ].map(([k, v]) => (
+                                <div key={k} className="flex flex-col gap-0.5">
+                                  <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wide">{k}</span>
+                                  <span className="text-xs font-mono text-foreground/80 break-all">{v}</span>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Payload */}
+                            <div className="rounded-lg p-4 flex flex-col gap-2" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 mb-0.5">Payload</p>
+                              <pre className="text-xs font-mono text-muted-foreground overflow-x-auto whitespace-pre-wrap break-all leading-relaxed">
+                                {JSON.stringify(entry.payload, null, 2)}
+                              </pre>
+                            </div>
+
+                          </div>
                         </td>
                       </tr>
                     )}

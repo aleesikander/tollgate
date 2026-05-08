@@ -7,9 +7,11 @@ from typing import Any, Literal
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 
 from tollgate.dependencies import AuthenticatedUser, DBSession
 from tollgate.models.action import Action, Decision
+from tollgate.models.approval_request import ApprovalRequest
 from tollgate.models.agent import Agent
 from tollgate.services.approval import ApprovalError, ApprovalService
 from tollgate.services.agent import AgentService
@@ -20,16 +22,34 @@ router = APIRouter()
 # ---------- Schemas ----------
 
 class AuditEntryResponse(BaseModel):
+    # Core identity
     id: uuid.UUID
+    idempotency_key: str
     agent_id: uuid.UUID
     agent_name: str | None
+
+    # What happened
     action_name: str
-    decision: str
     payload: dict[str, Any]
+
+    # Decision
+    decision: str
+    decision_source: str          # "policy" | "human" | "expired"
     reason: str | None
-    decided_by: str | None
-    created_at: str
     decided_at: str | None
+    created_at: str
+
+    # Human approval details (null when decided by policy)
+    decided_by: str | None        # approver email
+    decided_by_user_id: str | None
+
+    # Approval request metadata
+    approval_status: str | None
+    approval_requested_at: str | None
+    approval_decided_at: str | None
+    approval_expires_at: str | None
+    slack_channel: str | None
+    approvers_config: dict[str, Any] | None
 
 
 class AuditListResponse(BaseModel):
@@ -103,27 +123,57 @@ async def list_audit(
     )
     total = count_result.scalar_one()
 
-    # Fetch page
+    # Fetch page — eager-load approval request + the user who decided it
     result = await session.execute(
-        query.order_by(Action.created_at.desc()).limit(limit).offset(offset)
+        query.order_by(Action.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+        .options(
+            selectinload(Action.approval_request).selectinload(ApprovalRequest.decided_by)
+        )
     )
     actions = list(result.scalars().all())
 
-    items = [
-        AuditEntryResponse(
+    def _decision_source(a: Action) -> str:
+        if a.decision in (Decision.ALLOWED, Decision.DENIED):
+            return "policy"
+        if a.decision in (Decision.APPROVED, Decision.REJECTED):
+            return "human"
+        return "expired"
+
+    items = []
+    for a in actions:
+        ar = a.approval_request
+        items.append(AuditEntryResponse(
+            # Core identity
             id=a.id,
+            idempotency_key=a.idempotency_key,
             agent_id=a.agent_id,
             agent_name=org_agent_names.get(a.agent_id),
+
+            # What happened
             action_name=a.action_name,
-            decision=a.decision.value,
             payload=a.payload or {},
+
+            # Decision
+            decision=a.decision.value,
+            decision_source=_decision_source(a),
             reason=a.decision_reason,
-            decided_by=None,
             created_at=a.created_at.isoformat(),
             decided_at=a.decided_at.isoformat() if a.decided_at else None,
-        )
-        for a in actions
-    ]
+
+            # Human approval details
+            decided_by=ar.decided_by.email if ar and ar.decided_by else None,
+            decided_by_user_id=str(ar.decided_by_user_id) if ar and ar.decided_by_user_id else None,
+
+            # Approval request metadata
+            approval_status=ar.status.value if ar else None,
+            approval_requested_at=ar.created_at.isoformat() if ar else None,
+            approval_decided_at=ar.decided_at.isoformat() if ar and ar.decided_at else None,
+            approval_expires_at=ar.expires_at.isoformat() if ar else None,
+            slack_channel=ar.slack_channel if ar else None,
+            approvers_config=ar.approvers_config if ar else None,
+        ))
 
     return AuditListResponse(items=items, total=total)
 
