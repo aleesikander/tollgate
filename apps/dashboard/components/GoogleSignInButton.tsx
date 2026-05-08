@@ -5,7 +5,6 @@ import Script from "next/script";
 
 interface GoogleSignInButtonProps {
   onCredential: (idToken: string) => void;
-  label?: string;
 }
 
 declare global {
@@ -20,13 +19,7 @@ declare global {
           }) => void;
           renderButton: (
             element: HTMLElement,
-            options: {
-              theme?: string;
-              size?: string;
-              width?: number;
-              text?: string;
-              shape?: string;
-            }
+            options: { theme?: string; size?: string; width?: number; text?: string }
           ) => void;
         };
       };
@@ -46,19 +39,19 @@ function GoogleIcon() {
 }
 
 export function GoogleSignInButton({ onCredential }: GoogleSignInButtonProps) {
-  const hiddenRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const [googleReady, setGoogleReady] = useState(false);
   const [hovered, setHovered] = useState(false);
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
-  // On mount: if GIS script already loaded (SPA navigation), mark ready immediately
+  // If GIS already loaded (SPA navigation), mark ready immediately
   useEffect(() => {
     if (window.google) setGoogleReady(true);
   }, []);
 
-  // Initialize + render hidden Google button whenever Google becomes ready
+  // Render Google's invisible button into the overlay div
   useEffect(() => {
-    if (!googleReady || !clientId || !hiddenRef.current) return;
+    if (!googleReady || !clientId || !overlayRef.current) return;
 
     window.google!.accounts.id.initialize({
       client_id: clientId,
@@ -66,17 +59,12 @@ export function GoogleSignInButton({ onCredential }: GoogleSignInButtonProps) {
       use_fedcm_for_prompt: true,
     });
 
-    window.google!.accounts.id.renderButton(hiddenRef.current, {
+    window.google!.accounts.id.renderButton(overlayRef.current, {
       theme: "filled_black",
       size: "large",
-      width: 1,
+      width: overlayRef.current.parentElement?.offsetWidth ?? 380,
     });
   }, [googleReady, clientId, onCredential]);
-
-  function handleClick() {
-    const btn = hiddenRef.current?.querySelector<HTMLElement>('[role="button"]');
-    btn?.click();
-  }
 
   if (!clientId) return null;
 
@@ -88,30 +76,39 @@ export function GoogleSignInButton({ onCredential }: GoogleSignInButtonProps) {
         onLoad={() => setGoogleReady(true)}
       />
 
-      {/* Hidden Google button — real OAuth trigger */}
+      {/* Outer wrapper — relative so overlay can cover it exactly */}
       <div
-        ref={hiddenRef}
-        aria-hidden="true"
-        style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 1, height: 1, overflow: "hidden" }}
-      />
-
-      {/* Custom Tollgate-styled button */}
-      <button
-        type="button"
-        onClick={handleClick}
+        className="relative w-full"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        className="w-full h-10 rounded-lg flex items-center justify-center gap-2.5 text-sm font-medium transition-all duration-150"
-        style={{
-          background: hovered ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.04)",
-          border: `1px solid ${hovered ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.10)"}`,
-          color: "rgba(255,255,255,0.85)",
-          letterSpacing: "-0.01em",
-        }}
       >
-        <GoogleIcon />
-        Continue with Google
-      </button>
+        {/* Visible custom Tollgate-styled button (pointer-events: none — clicks fall through to overlay) */}
+        <div
+          className="w-full h-10 rounded-lg flex items-center justify-center gap-2.5 text-sm font-medium transition-all duration-150 select-none"
+          style={{
+            background: hovered ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.04)",
+            border: `1px solid ${hovered ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.10)"}`,
+            color: "rgba(255,255,255,0.85)",
+            letterSpacing: "-0.01em",
+            pointerEvents: "none",
+          }}
+        >
+          <GoogleIcon />
+          Continue with Google
+        </div>
+
+        {/* Google's rendered button — invisible overlay, receives all clicks */}
+        <div
+          ref={overlayRef}
+          style={{
+            position: "absolute",
+            inset: 0,
+            opacity: 0,
+            overflow: "hidden",
+            cursor: "pointer",
+          }}
+        />
+      </div>
     </>
   );
 }

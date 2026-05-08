@@ -80,6 +80,11 @@
     @apply bg-background text-foreground antialiased;
     font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
   }
+  button, [role="button"], a, select,
+  input[type="checkbox"], input[type="radio"],
+  label[for], summary {
+    cursor: pointer;
+  }
   html {
     @apply h-full;
     color-scheme: dark;
