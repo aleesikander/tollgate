@@ -1,0 +1,238 @@
+---
+title: Add Tollgate to a customer support agent in 15 minutes
+description: A real example — Stripe refund, Slack approval, YAML policy with amount threshold. Copy-paste ready.
+---
+
+You have a customer support agent that can issue refunds via Stripe. It works. But you would never run it unsupervised in production — one bad prompt and it refunds everything.
+
+This guide adds Tollgate in 15 minutes. Small refunds go through automatically. Large refunds pause and ask a human in Slack. Everything is logged.
+
+---
+
+## What you'll build
+
+```
+customer message → agent → tg.check("issue_refund", {...})
+                                 ↓
+                    amount ≤ $50?  → allow instantly
+                    amount > $50?  → Slack message to #approvals
+                                          ↓
+                                   human clicks Approve
+                                          ↓
+                               Stripe refund executes
+```
+
+---
+
+## Prerequisites
+
+- A Tollgate account — [sign up free](https://app.usetollgate.com/signup)
+- Python 3.10+
+- A Stripe test account (or swap in your own refund logic)
+- Slack workspace with a `#approvals` channel
+
+---
+
+## Step 1 — Create an agent (2 min)
+
+1. Go to [app.usetollgate.com/agents](https://app.usetollgate.com/agents)
+2. Click **New Agent** → name it `support-bot`
+3. Copy the API key — it won't be shown again
+
+```bash
+export TOLLGATE_API_KEY="tg_live_..."
+```
+
+---
+
+## Step 2 — Write the policy (3 min)
+
+Go to your agent → **Edit Policy**. Paste this:
+
+```yaml
+version: 1
+
+rules:
+  # Refunds under $50 — auto-approve, no friction
+  - action: issue_refund
+    when:
+      amount: { lte: 50 }
+    decide: allow
+
+  # Refunds $50–$500 — require a human to approve in Slack
+  - action: issue_refund
+    when:
+      amount: { lte: 500 }
+    decide: require_approval
+    approvers:
+      - "#approvals"
+
+  # Refunds over $500 — always block, handle manually
+  - action: issue_refund
+    when:
+      amount: { gt: 500 }
+    decide: deny
+    reason: "Refunds over $500 require manual processing"
+
+# Everything else the agent does is allowed by default
+default: allow
+```
+
+Click **Save Policy**. This is now live — no deploy needed.
+
+---
+
+## Step 3 — Connect Slack (3 min)
+
+Go to **Settings → Slack → Connect Slack**. Authorize your workspace.
+
+When Tollgate sends an approval request, it will post to `#approvals` with two buttons — **Approve** and **Reject**. The agent blocks and waits for the click.
+
+---
+
+## Step 4 — Install the SDK (1 min)
+
+```bash
+pip install tollgate-sdk
+```
+
+---
+
+## Step 5 — Wrap your refund function (5 min)
+
+Here's a complete example. Your agent already has a `issue_refund` function — wrap it with `tg.guard()`:
+
+```python
+import os
+import stripe
+from tollgate import Tollgate, ActionDenied, ActionPending
+
+stripe.api_key = os.environ["STRIPE_SECRET_KEY"]
+
+tg = Tollgate(api_key=os.environ["TOLLGATE_API_KEY"])
+
+
+@tg.guard("issue_refund")
+def issue_refund(amount: float, customer_id: str, reason: str = "") -> dict:
+    """Issue a refund via Stripe. Only runs if Tollgate allows it."""
+    intent = stripe.PaymentIntent.create(
+        amount=int(amount * 100),  # Stripe uses cents
+        currency="usd",
+        customer=customer_id,
+    )
+    refund = stripe.Refund.create(payment_intent=intent.id)
+    return {"status": "refunded", "refund_id": refund.id, "amount": amount}
+
+
+# Your agent calls this like any normal function
+def handle_customer_request(message: str, customer_id: str):
+    # ... your agent logic here ...
+    # When it decides to issue a refund:
+    try:
+        result = issue_refund(
+            amount=75.00,
+            customer_id=customer_id,
+            reason="Item arrived damaged"
+        )
+        return f"Refund of ${result['amount']} processed successfully."
+
+    except ActionDenied as e:
+        return f"Refund blocked: {e.reason}"
+
+    except ActionPending:
+        return "Refund is pending human approval. The customer will be updated shortly."
+```
+
+That's it. The `@tg.guard` decorator intercepts the call, checks the policy, and either:
+- Returns immediately (allowed)
+- Raises `ActionDenied` (denied)
+- Blocks until a human approves or rejects in Slack (pending), then either returns or raises `ActionDenied`
+
+---
+
+## What it looks like in Slack
+
+When a $75 refund is requested, your `#approvals` channel gets:
+
+```
+🔔 Approval required — support-bot
+
+Action:   issue_refund
+Agent:    support-bot
+Payload:  amount: 75.0
+          customer_id: cus_abc123
+          reason: Item arrived damaged
+
+Expires in 5 minutes.
+
+[✅ Approve]   [❌ Reject]
+```
+
+The agent is frozen at `issue_refund(...)` waiting. Click **Approve** — the Stripe refund executes and the customer gets their money. Click **Reject** — `ActionDenied` is raised and you handle it in your code.
+
+---
+
+## What it looks like in the audit log
+
+Every call to `tg.guard()` creates a record in your [audit log](https://app.usetollgate.com/audit):
+
+| Action | Amount | Decision | Decided by | Time |
+|--------|--------|----------|------------|------|
+| issue_refund | $30 | allowed | policy | 14:02:01 |
+| issue_refund | $75 | approved | ali@company.com | 14:03:47 |
+| issue_refund | $750 | denied | policy | 14:05:12 |
+
+---
+
+## Using async? Use AsyncTollgate
+
+```python
+from tollgate import AsyncTollgate, ActionDenied
+
+tg = AsyncTollgate(api_key=os.environ["TOLLGATE_API_KEY"])
+
+
+@tg.aguard("issue_refund")
+async def issue_refund(amount: float, customer_id: str) -> dict:
+    refund = await stripe.Refund.create_async(...)
+    return {"status": "refunded", "amount": amount}
+```
+
+---
+
+## Using LangChain or OpenAI function calling?
+
+Wrap the tool function the same way — Tollgate doesn't care what calls the function, only what the function does:
+
+```python
+from langchain.tools import tool
+
+@tool
+@tg.guard("issue_refund")
+def issue_refund(amount: float, customer_id: str) -> str:
+    """Issue a refund to a customer."""
+    # ...
+```
+
+For LangGraph with `interrupt()`, Tollgate replaces the need for it entirely — you get the pause, the Slack notification, and the resume in one decorator instead of building it yourself.
+
+---
+
+## Troubleshooting
+
+**Agent blocks forever and never gets a Slack message**
+→ Check that Slack is connected in Settings → Slack and that the channel name in your policy matches exactly (including the `#`).
+
+**ActionDenied raised immediately even for small amounts**
+→ Check your policy YAML indentation — YAML is whitespace-sensitive. Re-save the policy in the dashboard.
+
+**I want to test without real Stripe calls**
+→ Replace the Stripe call with `print(f"Would refund ${amount}")` — Tollgate doesn't know or care what's inside the guarded function.
+
+---
+
+## Next steps
+
+- [Policy DSL reference](/docs/policy-dsl) — all condition operators (`lte`, `gt`, `contains`, `in`, etc.)
+- [Slack integration details](/docs/integrations/slack) — custom approver routing, DMs vs channels
+- [Python SDK reference](/docs/sdks/python) — `guard`, `check`, `check_action`, `fail_open`
