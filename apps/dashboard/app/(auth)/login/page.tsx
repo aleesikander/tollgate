@@ -214,7 +214,7 @@ export default function LoginPage() {
           </div>
 
           <div className="mb-5">
-            <GoogleSignInButton onCredential={handleGoogleCredential} label="signin_with" />
+            <GoogleSignInButton onCredential={handleGoogleCredential} />
           </div>
 
           <OAuthDivider />

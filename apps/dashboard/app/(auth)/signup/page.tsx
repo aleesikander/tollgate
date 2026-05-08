@@ -209,7 +209,7 @@ export default function SignupPage() {
           </div>
 
           <div className="mb-5">
-            <GoogleSignInButton onCredential={handleGoogleCredential} label="signup_with" />
+            <GoogleSignInButton onCredential={handleGoogleCredential} />
           </div>
 
           <OAuthDivider />
