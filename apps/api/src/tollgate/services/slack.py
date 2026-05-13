@@ -460,9 +460,9 @@ class SlackService:
         message: str,
     ) -> None:
         """Send an ephemeral error message via response_url."""
-        import httpx
+        import aiohttp
 
-        async with httpx.AsyncClient() as http_client:
+        async with aiohttp.ClientSession() as http_client:
             try:
                 await http_client.post(
                     response_url,
@@ -481,9 +481,9 @@ class SlackService:
         text: str,
     ) -> None:
         """Update message via response_url (works even for old messages)."""
-        import httpx
+        import aiohttp
 
-        async with httpx.AsyncClient() as http_client:
+        async with aiohttp.ClientSession() as http_client:
             try:
                 await http_client.post(
                     response_url,
