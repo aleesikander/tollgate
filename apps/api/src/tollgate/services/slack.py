@@ -94,9 +94,11 @@ class SlackService:
         # Encrypt the bot token
         encrypted_token = encrypt(bot_token)
 
-        # Check if integration already exists for this org
+        # Check if integration already exists for this org or this Slack team
         result = await self.session.execute(
-            select(SlackIntegration).where(SlackIntegration.org_id == org_id)
+            select(SlackIntegration).where(
+                (SlackIntegration.org_id == org_id) | (SlackIntegration.team_id == team_id)
+            )
         )
         existing = result.scalar_one_or_none()
 
