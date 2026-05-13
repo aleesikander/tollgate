@@ -78,7 +78,7 @@ class ApprovalService:
         self,
         action_id: uuid.UUID,
         decision: str,
-        decided_by_user_id: uuid.UUID,
+        decided_by_user_id: uuid.UUID | None,
     ) -> tuple[ApprovalRequest, Action] | None:
         """Decide on an approval request.
 

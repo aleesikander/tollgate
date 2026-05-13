@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from tollgate.config import get_settings
 from tollgate.dependencies import AuthenticatedUser, DBSession, SlackServiceDep
 from tollgate.logging import get_logger
-from tollgate.models import Action, Agent, ApprovalRequest, ApprovalStatus, Decision, User
+from tollgate.models import Action, Agent, ApprovalRequest, ApprovalStatus, Decision
 from tollgate.services.approval import ApprovalService
 from tollgate.services.slack import SlackError, SlackService
 
@@ -277,18 +277,6 @@ async def handle_block_action(
         )
         return {"ok": True}
 
-    # Find the Tollgate user by email in this org
-    tollgate_user = await slack_service.find_user_by_slack_email(
-        slack_email, integration.org_id
-    )
-
-    if not tollgate_user:
-        await slack_service.send_ephemeral_error(
-            response_url,
-            f"❌ No Tollgate account found for {slack_email}. You must have a Tollgate account to approve actions.",
-        )
-        return {"ok": True}
-
     # Get the action and approval request
     action_result = await session.execute(
         select(Action, ApprovalRequest, Agent)
@@ -307,9 +295,8 @@ async def handle_block_action(
 
     tollgate_action, approval_request, agent = row
 
-    # Verify the user can approve this action
-    # Must be in the same org and be admin/owner OR match @username approver
-    if agent.org_id != tollgate_user.org_id:
+    # Verify the action belongs to this workspace's org
+    if agent.org_id != integration.org_id:
         await slack_service.send_ephemeral_error(
             response_url,
             "❌ You don't have permission to approve actions for this organization.",
@@ -340,7 +327,7 @@ async def handle_block_action(
         await approval_service.decide_approval(
             action_id=tollgate_action_id,
             decision=decision,
-            decided_by_user_id=tollgate_user.id,
+            decided_by_user_id=None,
         )
     except Exception as e:
         logger.error("slack_decision_failed", error=str(e))
@@ -352,7 +339,7 @@ async def handle_block_action(
 
     # Update the Slack message via response_url
     now = datetime.now(UTC).strftime("%H:%M UTC")
-    user_display = tollgate_user.email.split("@")[0]
+    user_display = slack_user.get("name") or (slack_email.split("@")[0] if slack_email else slack_user_id)
 
     if decision == "approved":
         blocks = [
@@ -383,7 +370,8 @@ async def handle_block_action(
         "slack_action_decided",
         action_id=str(tollgate_action_id),
         decision=decision,
-        user_id=str(tollgate_user.id),
+        slack_user_id=slack_user_id,
+        slack_email=slack_email,
     )
 
     return {"ok": True}
