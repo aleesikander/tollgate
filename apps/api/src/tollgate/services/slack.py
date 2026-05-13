@@ -94,11 +94,17 @@ class SlackService:
         # Encrypt the bot token
         encrypted_token = encrypt(bot_token)
 
-        # Check if integration already exists for this org or this Slack team
+        # Check if this Slack workspace is already claimed by a different org
+        team_result = await self.session.execute(
+            select(SlackIntegration).where(SlackIntegration.team_id == team_id)
+        )
+        team_existing = team_result.scalar_one_or_none()
+        if team_existing and team_existing.org_id != org_id:
+            raise SlackError("WORKSPACE_TAKEN", "This Slack workspace is already connected to another Tollgate account.")
+
+        # Check if integration already exists for this org
         result = await self.session.execute(
-            select(SlackIntegration).where(
-                (SlackIntegration.org_id == org_id) | (SlackIntegration.team_id == team_id)
-            )
+            select(SlackIntegration).where(SlackIntegration.org_id == org_id)
         )
         existing = result.scalar_one_or_none()
 
