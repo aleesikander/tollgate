@@ -9,6 +9,7 @@ const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "http://localhost
 
 const NAV_LINKS = [
   { label: "Docs", href: `${DOCS_URL}/docs` },
+  { label: "Blog", href: "/blog" },
   { label: "Company", href: "#company" },
 ];
 
